@@ -110,7 +110,7 @@ class SocketParameterServer(ParameterServer):
         else:
             file_descriptor.bind(('0.0.0.0', self.master_port))
         # Listen to the socket.
-        file_descriptor.listen(20)
+        file_descriptor.listen(5)
         # Assign the socket.
         self.socket = file_descriptor
 
