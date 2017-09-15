@@ -57,9 +57,9 @@ def recv_data(connection):
     # Fetch the serialized data.
     serialized_data = recvall(connection, length)
     # Deserialize the data.
-    data = pickle.loads(serialized_data)
     import lz4
-    return lz4.block.decompress(data)
+    data = pickle.loads(lz4.block.decompress(serialized_data))
+    return data
 
 
 def send_data(connection, data):
