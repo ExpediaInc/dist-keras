@@ -978,15 +978,15 @@ class Experimental2(AsynchronousDistributedTrainer):
         #only start one parameter service for one machine
         if worker_ip_id[socket.gethostbyname(socket.gethostname())] ==id:
             self.stop_worker_parameter_service()
-            return [True]
-        return [False]
+            return [1]
+        return [0]
 
     def worker_start_service(id):
         #only start one parameter service for one machine
         if worker_ip_id[socket.gethostbyname(socket.gethostname())] ==id:
             self.start_worker_parameter_service()
-            return [True]
-        return [False]
+            return [1]
+        return [0]
 
     def train(self, dataframe, shuffle=False):
         """Training procedure of an asynchronous distributed optimization process.
