@@ -929,7 +929,7 @@ class ADAGWithDistributedParameterServer(AsynchronousDistributedTrainer):
         self.communication_window = communication_window
         self.num_children = num_children
         self.communication_window_executor = 1
-        self.master_host_executor = "localhost"
+        self.master_host_executor = "0.0.0.0"
 
     def allocate_worker(self):
         """Allocate experimental worker."""

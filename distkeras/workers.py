@@ -626,21 +626,22 @@ class ADAGWorkerWithDistributedParameterServer(NetworkWorker):
             self.iteration += 1
 
     def startDistributedParameterServerService(self):
-        """Executes the distributed parameter server service."""
+        print ("""Executes the distributed parameter server service.""")
         self.distributed_parameter_server.start()
         self.distributed_parameter_server.initialize()
         self.distributed_parameter_server.run()
 
 
     def setupDistributedParameterServer(self):
-        """Set up the distributed parameter server"""
-        """Only start server service once per machine"""
+        print ("""Set up the distributed parameter server""")
+        print ("""Only start server service once per machine""")
         if self.worker_ip_id[socket.gethostbyname(socket.gethostname())] == self.worker_id:
             self.distributed_parameter_server = ADAGDistributedParameterServer(self.model, self.master_port, self.ip_list, self.num_children, communication_window)
             self.distributed_parameter_server_thread = threading.Thread(target=self.startDistributedParameterServerService)
             self.distributed_parameter_server_thread.start()
+            print (""" after tself.distributed_parameter_server_thread.start() """ + str(self.worker_id))
         else:
-            """wait the paramter server to be started"""
+            print("""wait the paramter server to be started""")
             time.sleep(60)
 
     def cleanDistributedParameterServer(self):
@@ -652,14 +653,16 @@ class ADAGWorkerWithDistributedParameterServer(NetworkWorker):
             self.distributed_parameter_server_thread = None
 
     def train(self, worker_id, iterator):
-        self.worker_id = worker_id
-        self.setupDistributedParameterServer()
-        """Training procedure of a networked worker with a parameter server."""
-        self.start_prefetching_thread(iterator)
         self.set_worker_id(worker_id)
+        self.setupDistributedParameterServer()
+        print("""Training procedure of a networked worker with distributed parameter server.""" +str(worker_id))
+        self.start_prefetching_thread(iterator)
         self.prepare_model()
+        print("""before connect.""" +str(worker_id))
         self.connect()
+        print("""after connect.""" +str(worker_id))
         self.pull()
+       print("""after pull.""" +str(worker_id))
         self.model.set_weights(self.center_variable)
         try:
             self.optimize()

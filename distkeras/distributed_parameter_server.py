@@ -225,7 +225,7 @@ class SocketDistributedParameterServer(DistributedParameterServer):
         self.running = True
 
     def run(self):
-        """Main event loop of the parameter server."""
+        print("""Main event loop of the parameter server.""")
         # Listen for incoming connections.
         while self.running:
             try:
