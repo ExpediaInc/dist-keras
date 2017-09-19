@@ -974,14 +974,14 @@ class Experimental2(AsynchronousDistributedTrainer):
         self.worker_parameter_server_thread = threading.Thread(target=self.worker_parameter_service)
         self.worker_parameter_server_thread.start()
 
-    def worker_stop_service(id):
+    def worker_stop_service(self,id):
         #only start one parameter service for one machine
         if worker_ip_id[socket.gethostbyname(socket.gethostname())] ==id:
             self.stop_worker_parameter_service()
             return [1]
         return [0]
 
-    def worker_start_service(id):
+    def worker_start_service(self,id):
         #only start one parameter service for one machine
         if worker_ip_id[socket.gethostbyname(socket.gethostname())] ==id:
             self.start_worker_parameter_service()
