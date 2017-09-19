@@ -13,7 +13,6 @@ from distkeras.parameter_servers import ADAGParameterServer
 from distkeras.parameter_servers import DeltaParameterServer
 from distkeras.parameter_servers import DynSGDParameterServer
 from distkeras.parameter_servers import ExperimentalParameterServer
-from distkeras.worker_parameter_server import ADAGWorkerParameterServer
 
 from distkeras.utils import deserialize_keras_model
 from distkeras.utils import history_executor
@@ -34,8 +33,6 @@ from distkeras.workers import EAMSGDWorker
 from distkeras.workers import SequentialWorker
 
 from keras import backend as K
-
-import socket
 
 ## END Imports. ################################################################
 
@@ -915,135 +912,3 @@ class Experimental(AsynchronousDistributedTrainer):
         parameter_server = ExperimentalParameterServer(self.master_model, self.master_port, self.learning_rate)
 
         return parameter_server
-
-class Experimental2(AsynchronousDistributedTrainer):
-    """Experimental optimization scheme for development purposes."""
-
-    def __init__(self, keras_model, worker_optimizer, loss, metrics=["accuracy"], num_workers=2, batch_size=32,
-                 features_col="features", label_col="label", num_epoch=1, communication_window=12, master_port=5000, loss_weights=None,
-                 num_children=3):
-        # Initialize the parent object.
-        super(Experimental2, self).__init__(keras_model, worker_optimizer, loss, metrics, num_workers,
-                                   batch_size, features_col, label_col, num_epoch, master_port, loss_weights)
-        # Set algorithm parameters.
-        self.communication_window = communication_window
-        self.num_children = num_children
-        self.communication_window_executor = 1
-        self.master_host_executor = "localhost"
-
-    def allocate_worker(self):
-        """Allocate experimental worker."""
-        worker = ADAGWorker(self.master_model, self.worker_optimizer, self.loss, self.loss_weights, self.metrics,
-                            self.features_column, self.label_column, self.batch_size, self.num_epoch,
-                            self.master_host_executor, self.master_port, self.communication_window_executor)
-        return worker
-
-
-    def allocate_worker_parameter_server(self):
-        """Allocate AGAG parameter server."""
-        worker_parameter_server = ADAGWorkerParameterServer(self.master_model, self.master_port, self.ip_list, 
-                                                            self.num_children, self.communication_window)
-
-        return worker_parameter_server
-
-    def allocate_parameter_server(self):
-        """Allocate AGAG parameter server."""
-        parameter_server = ADAGParameterServer(self.master_model, self.master_port)
-
-        return parameter_server
-
-    def worker_parameter_service(self):
-        """Executes the parameter server service."""
-        self.worker_parameter_server.start()
-        self.worker_parameter_server.initialize()
-        self.worker_parameter_server.run()
-
-    def stop_worker_parameter_service(self):
-        """Stops the parameter server service."""
-        self.worker_parameter_server.stop()
-        self.worker_parameter_server_thread.join()
-        self.worker_parameter_server_thread = None
-
-    def start_worker_parameter_service(self):
-        """Starts the parameter server service."""
-        # Check if a parameter server thread is already allocated.
-        if not self.worker_parameter_server_thread is None:
-            # Stop the parameter server service.
-            self.stop_worker_parameter_service()
-        # Allocate a new parameter service thread.
-        self.worker_parameter_server_thread = threading.Thread(target=self.worker_parameter_service)
-        self.worker_parameter_server_thread.start()
-
-    def worker_stop_service(id):
-        #only start one parameter service for one machine
-        if worker_ip_id[socket.gethostbyname(socket.gethostname())] ==id:
-            self.stop_worker_parameter_service()
-            return [True]
-        return [False]
-
-    def worker_start_service(id):
-        #only start one parameter service for one machine
-        if worker_ip_id[socket.gethostbyname(socket.gethostname())] ==id:
-            self.start_worker_parameter_service()
-            return [True]
-        return [False]
-
-    def train(self, dataframe, shuffle=False):
-        """Training procedure of an asynchronous distributed optimization process.
-
-        # Arguments
-            dataframe: dataframe. A Spark Dataframe containing the training data.
-            shuffle: boolean. Tells to shuffle the dataframe before training.
-                     Warning: this will tell Spark to shuffle all partitions over
-                     the network. It is recommended to shuffle the dataframe before
-                     training and store it.
-        """
-        # Check if a parameter server has been allocated.
-        if self.parameter_server is not None:
-            # Cleanup the old parameter server.
-            self.parameter_server.stop()
-            self.parameter_server = None
-        #get one partition id for each worker ip
-        self.worker_ip_id = dict(dataframe.rdd\
-                                        .mapPartitionsWithIndex(lambda id,y : [(socket.gethostbyname(socket.gethostname()),id)])\
-                                        .collect())
-        # Allocate the master parameter server.
-        self.parameter_server = self.allocate_parameter_server()
-        #start the marster parameter server service
-        self.start_service()
-        # Allocate the worker parameter server. master ip + list of worker ip
-        self.ip_list = [socket.gethostbyname(socket.gethostname())] + dataframe.rdd\
-                                    .mapPartitionsWithIndex(lambda id,y : [socket.gethostbyname(socket.gethostname())])\
-                                    .collect()
-        self.worker_parameter_server = self.allocate_worker_parameter_server()
-        # Start the worker parameter server service.
-        dataframe.rdd.mapPartitionsWithIndex(lambda id, y: self.worker_start_service(id) ).collect()
-        # Allocate a worker.
-        worker = self.allocate_worker()
-        # Set the maximum number of mini-batches.
-        worker.set_max_prefetch(self.max_mini_batches_prefetch)
-        # Repartition in order to fit the number of workers.
-        num_partitions = dataframe.rdd.getNumPartitions()
-        # Check if the dataframe needs to be shuffled before training.
-        if shuffle:
-            dataframe = shuffle(dataframe)
-        # Indicate the parallelism (number of worker times parallelism factor).
-        parallelism = self.parallelism_factor * self.num_workers
-        # Check if we need to repartition the dataframe.
-        if num_partitions >= parallelism:
-            dataframe = dataframe.coalesce(parallelism)
-        else:
-            dataframe = dataframe.repartition(parallelism)
-        # Start the training procedure.
-        self.record_training_start()
-        # Iterate through the epochs.
-        self.history = dataframe.rdd.mapPartitionsWithIndex(worker.train).collect()
-        # End the training procedure.
-        self.record_training_end()
-
-        #stop the commnication service on workers
-        dataframe.rdd.mapPartitionsWithIndex(lambda id, y: self.worker_stop_service(id) ).collect()
-        # Stop the communication service.
-        self.stop_service()
-
-        return self.parameter_server.get_model()
