@@ -32,6 +32,7 @@ import threading
 import tensorflow as tf
 
 import sys
+import time
 
 # "queue" module in python 3 is named "Queue" in python 2
 use_python3 = sys.version_info[0] == 3
@@ -638,6 +639,9 @@ class ADAGWorkerWithDistributedParameterServer(NetworkWorker):
             self.distributed_parameter_server = ADAGDistributedParameterServer(self.model, self.master_port, self.ip_list, self.num_children, communication_window)
             self.distributed_parameter_server_thread = threading.Thread(target=self.startDistributedParameterServerService)
             self.distributed_parameter_server_thread.start()
+        else:
+            """wait the paramter server to be started"""
+            time.sleep(60)
 
     def cleanDistributedParameterServer(self):
         """Set up the distributed parameter server"""

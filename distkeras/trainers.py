@@ -9,6 +9,8 @@ import threading
 
 import time
 
+import socket
+
 from distkeras.parameter_servers import ADAGParameterServer
 from distkeras.parameter_servers import DeltaParameterServer
 from distkeras.parameter_servers import DynSGDParameterServer
