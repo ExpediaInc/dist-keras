@@ -72,7 +72,7 @@ class SocketWorkerParameterServer(WorkerParameterServer):
         port: int. Listing port number.
     """
 
-    def __init__(self, model, port=5000, ip_list, num_children=3,com_window =10):
+    def __init__(self, model, ip_list, port=5000, num_children=3,com_window =10):
         super(SocketParameterServer, self).__init__(model)
         self.master_port = port
         self.socket_parent = None
@@ -275,7 +275,7 @@ class ADAGWorkerParameterServer(SocketWorkerParameterServer):
     """
 
     def __init__(self, model, master_port,ip_list, num_children=3,com_window =10):
-        super(ADAGParameterServer, self).__init__(model, master_port, ip_list, num_children,com_window)
+        super(ADAGParameterServer, self).__init__(model, ip_list, master_port, num_children,com_window)
         self.center_variable = np.asarray(self.model.get_weights())
         self.center_variable_old = np.asarray(self.model.get_weights())
 
@@ -288,7 +288,7 @@ class ADAGWorkerParameterServer(SocketWorkerParameterServer):
             # Update the center variable.
             self.center_variable = self.center_variable + 1.0/com_window * r
         	# Increment the number of parameter server updates.
-        	self.next_executor_update()
+            self.next_executor_update()
 
     def handle_child_commit(self, conn, addr):
         # Receive the parameters from the remote node.
@@ -299,7 +299,7 @@ class ADAGWorkerParameterServer(SocketWorkerParameterServer):
             # Update the center variable.
             self.center_variable = self.center_variable + r
         	# Increment the number of parameter server updates.
-        	self.next_child_update()
+            self.next_child_update()
 
     def handle_pull(self, conn, addr):
         """Handles parameter requests coming from the workers. This will
