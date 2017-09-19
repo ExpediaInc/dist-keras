@@ -84,7 +84,7 @@ class SocketWorkerParameterServer(WorkerParameterServer):
         self.disable_nagle = True
         self.com_window = com_window
 
-    def find_parent_ip(self,ip_list,num_children):
+    def find_parent_ip(ip_list,num_children):
     	host_ip = socket.gethostbyname(socket.gethostname())
     	for i in range(len(ip_list)):
     		if ip_list[i] == host_ip:
