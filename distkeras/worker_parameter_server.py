@@ -73,7 +73,7 @@ class SocketWorkerParameterServer(WorkerParameterServer):
     """
 
     def __init__(self, model, ip_list, port=5000, num_children=3,com_window =10):
-        super(SocketWorkerParameterServer, self).__init__(model)
+        super(SocketParameterServer, self).__init__(model)
         self.master_port = port
         self.socket_parent = None
         self.socket_child = None
@@ -275,7 +275,7 @@ class ADAGWorkerParameterServer(SocketWorkerParameterServer):
     """
 
     def __init__(self, model, master_port,ip_list, num_children=3,com_window =10):
-        super(ADAGWorkerParameterServer, self).__init__(model, ip_list, master_port, num_children,com_window)
+        super(ADAGParameterServer, self).__init__(model, ip_list, master_port, num_children,com_window)
         self.center_variable = np.asarray(self.model.get_weights())
         self.center_variable_old = np.asarray(self.model.get_weights())
 
