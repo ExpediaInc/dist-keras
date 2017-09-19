@@ -16,6 +16,8 @@ from distkeras.utils import set_keras_base_directory
 from distkeras.utils import shuffle
 from distkeras.utils import uniform_weights
 
+from distkeras.distributed_parameter_server import ADAGDistributedParameterServer
+
 from keras.optimizers import Optimizer, serialize, deserialize
 import keras.backend as K
 
@@ -571,3 +573,96 @@ class ExperimentalWorker(NetworkWorker):
                 self.model.set_weights(self.center_variable)
                 W1 = self.center_variable
             self.iteration += 1
+
+class ADAGWorkerWithDistributedParameterServer(NetworkWorker):
+    """Implements the training procedure for ADAGWorkerWithDistributedParameterServer.
+
+    Introduced by Wang et al.
+    """
+
+    def __init__(self, model, optimizer, loss, loss_weights, metrics=["accuracy"], features_col="features", label_col="label",
+                 batch_size=32, num_epoch=1, master_host="localhost", master_port=5000, communication_window_executor=1,
+                 num_children=3, communication_window_parameter_server = 10 , worker_ip_id=None, ip_list =None):
+        # Initialize the parent object.
+        super(ADAGWorkerWithDistributedParameterServer, self).__init__(model, optimizer, loss, loss_weights, metrics, features_col, label_col,
+                                         batch_size, num_epoch, master_host, master_port)
+        # Initialize ADAG parameters.
+        self.communication_window_executor = communication_window_executor
+        self.communication_window_parameter_server = communication_window_parameter_server
+        self.num_children = num_children
+        self.worker_ip_id = worker_ip_id
+        self.ip_list = ip_list
+        self.iteration = 1
+
+    def commit(self, residual):
+        """Sends the gradient residual to the parameter server."""
+        # Prepare the datastructure.
+        data = {}
+        data['worker_id'] = self.get_worker_id()
+        data['residual'] = residual
+        # Request a commit from the parameter server.
+        self.socket.sendall(b'c')
+        # Send the data to the paramter server.
+        send_data(self.socket, data)
+
+    def optimize(self):
+        """Optimization procedure of ADAG."""
+        W1 = np.asarray(self.model.get_weights())
+        while True:
+            X, Y = self.get_next_minibatch()
+            h = self.model.train_on_batch(X, Y)
+            self.add_history(h)
+            sys.stderr.write("Epoch: " + str(self.current_epoch) + "  Iteration: " + str(self.iteration) + "  loss:" + str(h) + "\n")
+            sys.stderr.flush()
+            if self.iteration % self.communication_window == 0:
+                W2 = np.asarray(self.model.get_weights())
+                delta = W2 - W1
+                delta /= self.communication_window
+                self.commit(delta)
+                self.pull()
+                self.model.set_weights(self.center_variable)
+                W1 = self.center_variable
+            self.iteration += 1
+
+    def startDistributedParameterServerService(self):
+        """Executes the distributed parameter server service."""
+        self.distributed_parameter_server.start()
+        self.distributed_parameter_server.initialize()
+        self.distributed_parameter_server.run()
+
+
+    def setupDistributedParameterServer(self):
+        """Set up the distributed parameter server"""
+        """Only start server service once per machine"""
+        if self.worker_ip_id[socket.gethostbyname(socket.gethostname())] == self.worker_id:
+            self.distributed_parameter_server = ADAGDistributedParameterServer(self.model, self.master_port, self.ip_list, self.num_children, communication_window)
+            self.distributed_parameter_server_thread = threading.Thread(target=self.startDistributedParameterServerService)
+            self.distributed_parameter_server_thread.start()
+
+    def cleanDistributedParameterServer(self):
+        """Set up the distributed parameter server"""
+        """Only clean server service once per machine"""
+        if self.worker_ip_id[socket.gethostbyname(socket.gethostname())] == self.worker_id:
+            self.distributed_parameter_server.stop()
+            self.distributed_parameter_server_thread.join()
+            self.distributed_parameter_server_thread = None
+
+    def train(self, worker_id, iterator):
+        self.worker_id = worker_id
+        self.setupDistributedParameterServer()
+        """Training procedure of a networked worker with a parameter server."""
+        self.start_prefetching_thread(iterator)
+        self.set_worker_id(worker_id)
+        self.prepare_model()
+        self.connect()
+        self.pull()
+        self.model.set_weights(self.center_variable)
+        try:
+            self.optimize()
+        except Exception as e:
+            self.is_prefetching = False
+            print(e)
+        self.socket.close()
+        self.prefetching_thread.join(timeout=1)
+        self.cleanDistributedParameterServer()
+        return iter(self.training_history)
