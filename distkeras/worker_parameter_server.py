@@ -80,7 +80,7 @@ class SocketWorkerParameterServer(WorkerParameterServer):
         self.running = False
         self.connections = []
         self.mutex = threading.Lock()
-        self.parent_ip = self.find_parent_ip(ip_list, num_children) 
+        self.parent_ip = find_parent_ip(ip_list, num_children) 
         self.disable_nagle = True
         self.com_window = com_window
 
