@@ -209,7 +209,7 @@ class SocketDistributedParameterServer(DistributedParameterServer):
                 #check if need commit the weight to parent server
                 with self.mutex:
                 	#block the update of local parameters when it commits to the parent parameter server
-                	if get_num_updates() > 1:
+                	if self.get_num_updates() > 1:
                 		residual = self.center_variable - self.center_variable_old
                 		self.commit(residual)
                 		self.pull()

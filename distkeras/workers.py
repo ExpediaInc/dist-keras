@@ -615,10 +615,10 @@ class ADAGWorkerWithDistributedParameterServer(NetworkWorker):
             self.add_history(h)
             sys.stderr.write("Epoch: " + str(self.current_epoch) + "  Iteration: " + str(self.iteration) + "  loss:" + str(h) + "\n")
             sys.stderr.flush()
-            if self.iteration % self.communication_window == 0:
+            if self.iteration % self.communication_window_executor == 0:
                 W2 = np.asarray(self.model.get_weights())
                 delta = W2 - W1
-                delta /= self.communication_window
+                delta /= self.communication_window_executor
                 self.commit(delta)
                 self.pull()
                 self.model.set_weights(self.center_variable)
@@ -636,7 +636,7 @@ class ADAGWorkerWithDistributedParameterServer(NetworkWorker):
         print ("""Set up the distributed parameter server""")
         print ("""Only start server service once per machine""")
         if self.worker_ip_id[socket.gethostbyname(socket.gethostname())] == self.worker_id:
-            self.distributed_parameter_server = ADAGDistributedParameterServer(self.model, self.master_port, self.ip_list, self.num_children, communication_window)
+            self.distributed_parameter_server = ADAGDistributedParameterServer(self.model, self.master_port, self.ip_list, self.num_children, self.communication_window_parameter_server)
             self.distributed_parameter_server_thread = threading.Thread(target=self.startDistributedParameterServerService)
             self.distributed_parameter_server_thread.start()
             print (""" after tself.distributed_parameter_server_thread.start() """ + str(self.worker_id))
@@ -662,7 +662,7 @@ class ADAGWorkerWithDistributedParameterServer(NetworkWorker):
         self.connect()
         print("""after connect.""" +str(worker_id))
         self.pull()
-       print("""after pull.""" +str(worker_id))
+        print("""after pull.""" +str(worker_id))
         self.model.set_weights(self.center_variable)
         try:
             self.optimize()
