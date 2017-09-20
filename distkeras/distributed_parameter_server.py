@@ -222,10 +222,11 @@ class SocketDistributedParameterServer(DistributedParameterServer):
                     #block the update of local parameters when it commits to the parent parameter server
                     if self.get_num_updates() > 1.0 :
                         residual = self.center_variable - self.center_variable_old
+                        print("before commit and pull to parent server ")
                         self.commit(residual)
                         self.pull()
                         self.reset_update_counter()
-                        print("commit and pull to parent server ")
+                        print("after commit and pull to parent server ")
         except Exception as e:
             print(e)
 
@@ -343,7 +344,7 @@ class ADAGDistributedParameterServer(SocketDistributedParameterServer):
         #establish the connection to its parent
         if self.socket_parent is None:
             self.connect()
-        """Sends the gradient residual to the parameter server."""
+        print """Sends the gradient residual to the parameter server."""
         data = {}
         data['worker_id'] = -1
         data['residual'] = residual
