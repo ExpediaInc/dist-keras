@@ -928,7 +928,7 @@ class ADAGWithDistributedParameterServer(AsynchronousDistributedTrainer):
         # Set algorithm parameters.
         self.communication_window = communication_window
         self.num_children = num_children
-        self.communication_window_executor = 1
+        self.communication_window_executor = 3
         self.master_host_executor = "0.0.0.0"
 
     def allocate_worker(self):
@@ -938,6 +938,7 @@ class ADAGWithDistributedParameterServer(AsynchronousDistributedTrainer):
                             self.master_host_executor, self.master_port, self.communication_window_executor, 
                             self.num_children, self.communication_window, self.worker_ip_id, self.ip_list)
         return worker
+
 
     def allocate_parameter_server(self):
         """Allocate AGAG parameter server."""
@@ -960,22 +961,7 @@ class ADAGWithDistributedParameterServer(AsynchronousDistributedTrainer):
             # Cleanup the old parameter server.
             self.parameter_server.stop()
             self.parameter_server = None
-        #get one partition id for each worker ip
-        self.worker_ip_id = dict(dataframe.rdd\
-                                        .mapPartitionsWithIndex(lambda id,y : [(socket.gethostbyname(socket.gethostname()),id)])\
-                                        .collect())
-        # Allocate the master parameter server.
-        self.parameter_server = self.allocate_parameter_server()
-        #start the marster parameter server service
-        self.start_service()
-        # Allocate the worker parameter server. master ip + list of worker ip
-        self.ip_list = [socket.gethostbyname(socket.gethostname())] + list(set(dataframe.rdd\
-                                    .mapPartitionsWithIndex(lambda id,y : [socket.gethostbyname(socket.gethostname())])\
-                                    .collect()))
-        # Allocate a worker.
-        worker = self.allocate_worker()
-        # Set the maximum number of mini-batches.
-        worker.set_max_prefetch(self.max_mini_batches_prefetch)
+
         # Repartition in order to fit the number of workers.
         num_partitions = dataframe.rdd.getNumPartitions()
         # Check if the dataframe needs to be shuffled before training.
@@ -988,6 +974,26 @@ class ADAGWithDistributedParameterServer(AsynchronousDistributedTrainer):
             dataframe = dataframe.coalesce(parallelism)
         else:
             dataframe = dataframe.repartition(parallelism)
+        dataframe.cache()
+        print dataframe.count()
+        #get one partition id for each worker ip
+        from random import shuffle
+        self.worker_ip_id = dict(dataframe.rdd\
+                                        .mapPartitionsWithIndex(lambda id,y : [(socket.gethostbyname(socket.gethostname()),id)])\
+                                        .collect())
+        # Allocate the master parameter server.
+        self.parameter_server = self.allocate_parameter_server()
+        #start the marster parameter server service
+        self.start_service()
+        # Allocate the worker parameter server. master ip + list of worker ip
+        self.ip_list = [socket.gethostbyname(socket.gethostname())] + list(set(dataframe.rdd\
+                                    .mapPartitionsWithIndex(lambda id,y : [socket.gethostbyname(socket.gethostname())])\
+                                    .collect()))
+        #self.ip_list = [socket.gethostbyname(socket.gethostname())]
+        # Allocate a worker.
+        worker = self.allocate_worker()
+        # Set the maximum number of mini-batches.
+        worker.set_max_prefetch(self.max_mini_batches_prefetch)
         # Start the training procedure.
         self.record_training_start()
         # Iterate through the epochs.

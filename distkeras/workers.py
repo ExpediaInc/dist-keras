@@ -123,7 +123,7 @@ class Worker(object):
 
     def get_next_minibatch(self):
         """Returns the next mini-batch."""
-        return self.mini_batches.get(timeout=10)
+        return self.mini_batches.get(timeout=20)
 
     def start_prefetching_thread(self, iterator):
         """Starts the data prefetching thread."""
@@ -607,20 +607,24 @@ class ADAGWorkerWithDistributedParameterServer(NetworkWorker):
         send_data(self.socket, data)
 
     def optimize(self):
-        """Optimization procedure of ADAG."""
+        print("""Optimization procedure of ADAG.""")
         W1 = np.asarray(self.model.get_weights())
         while True:
             X, Y = self.get_next_minibatch()
+            print("""train_on_batch""")
             h = self.model.train_on_batch(X, Y)
             self.add_history(h)
-            sys.stderr.write("Epoch: " + str(self.current_epoch) + "  Iteration: " + str(self.iteration) + "  loss:" + str(h) + "\n")
+            sys.stderr.write("Worker_id "+ str(self.get_worker_id()) +"  Epoch: " + str(self.current_epoch) + "  Iteration: " + str(self.iteration) + "  loss:" + str(h) + "\n")
             sys.stderr.flush()
             if self.iteration % self.communication_window_executor == 0:
                 W2 = np.asarray(self.model.get_weights())
                 delta = W2 - W1
                 delta /= self.communication_window_executor
+                #print("""before commit""" + str(self.get_worker_id()))
                 self.commit(delta)
+                #print("""after commit"""+ str(self.get_worker_id()))
                 self.pull()
+                #print("""after pull"""+ str(self.get_worker_id()))
                 self.model.set_weights(self.center_variable)
                 W1 = self.center_variable
             self.iteration += 1
@@ -642,34 +646,48 @@ class ADAGWorkerWithDistributedParameterServer(NetworkWorker):
             print (""" after tself.distributed_parameter_server_thread.start() """ + str(self.worker_id))
         else:
             print("""wait the paramter server to be started""")
-            time.sleep(60)
+            np.random.seed(self.get_worker_id())
+            time.sleep(10+np.random.randint(10))
+            print("""start to connect""")
 
     def cleanDistributedParameterServer(self):
         """Set up the distributed parameter server"""
         """Only clean server service once per machine"""
         if self.worker_ip_id[socket.gethostbyname(socket.gethostname())] == self.worker_id:
+            self.socket.sendall(b's')
+            while self.distributed_parameter_server.finished_children_count < self.distributed_parameter_server.connected_children_and_excutor_count:
+                time.sleep(1)
+                print(str(self.distributed_parameter_server.finished_children_count)+" < "+str(self.distributed_parameter_server.connected_children_and_excutor_count) )
+            print """start stop distributed_parameter_server"""
             self.distributed_parameter_server.stop()
+            print """distributed_parameter_server.stop"""
             self.distributed_parameter_server_thread.join()
+            print """after join """
             self.distributed_parameter_server_thread = None
+        else:
+            print """notify server the job is done"""
+            self.socket.sendall(b's')
 
     def train(self, worker_id, iterator):
+        self.start_prefetching_thread(iterator)
         self.set_worker_id(worker_id)
         self.setupDistributedParameterServer()
         print("""Training procedure of a networked worker with distributed parameter server.""" +str(worker_id))
-        self.start_prefetching_thread(iterator)
         self.prepare_model()
-        print("""before connect.""" +str(worker_id))
+        print("""before connect """ +str(worker_id))
         self.connect()
-        print("""after connect.""" +str(worker_id))
+        print("""after connect """ +str(worker_id))
         self.pull()
-        print("""after pull.""" +str(worker_id))
+        print("""after pull """ +str(worker_id))
         self.model.set_weights(self.center_variable)
         try:
             self.optimize()
         except Exception as e:
             self.is_prefetching = False
             print(e)
-        self.socket.close()
         self.prefetching_thread.join(timeout=1)
+        print("""after prefetching_thread join  """ +str(worker_id))
         self.cleanDistributedParameterServer()
+        self.socket.close()
+        print("""after socket close """ +str(worker_id))
         return iter(self.training_history)

@@ -24,7 +24,7 @@ class DistributedParameterServer(object):
 
     def __init__(self, model):
         self.model = deserialize_keras_model(model)
-        self.num_updates = 1
+        self.num_updates = 0
 
     def initialize(self):
         """Initializes the parameter server.
@@ -83,19 +83,21 @@ class SocketDistributedParameterServer(DistributedParameterServer):
         self.parent_ip = self.find_parent_ip(ip_list, num_children) 
         self.disable_nagle = True
         self.com_window = com_window
+        self.finished_children_count = 0
+        self.connected_children_and_excutor_count = 0
 
     def find_parent_ip(self,ip_list,num_children):
-    	host_ip = socket.gethostbyname(socket.gethostname())
-    	for i in range(len(ip_list)):
-    		if ip_list[i] == host_ip:
-    			if i >0:
-    				return ip_list[int( (i-1) / num_children)]
-    			else:
-    				return ip_list[0]
+        host_ip = socket.gethostbyname(socket.gethostname())
+        for i in range(len(ip_list)):
+            if ip_list[i] == host_ip:
+                if i >0:
+                    return ip_list[int( (i-1) / num_children)]
+                else:
+                    return ip_list[0]
 
     def next_executor_update(self):
-        """Increments the number of model updates by 1."""
-        self.num_updates += 1.0 / com_window
+        """Increments the number of model updates by 1./com_window"""
+        self.num_updates += 1.0 / self.com_window
 
     def next_child_update(self):
         """Increments the number of model updates by 1."""
@@ -160,7 +162,7 @@ class SocketDistributedParameterServer(DistributedParameterServer):
     def pull(self):
     	#establish the connection
     	if self.socket_parent is None:
-    		connect()
+    		self.connect()
         """Requests the center variable from the parameter server."""
         # Request a pull from the parameter server.
         self.socket_parent.sendall(b'p')
@@ -199,23 +201,31 @@ class SocketDistributedParameterServer(DistributedParameterServer):
                 # Check if the action is a commit (most of the cases).
                 if action == 'c':
                     # Handle the commit.
+                    #print("before handle commit")
                     self.handle_executor_commit(conn, addr)
+                    #print("after handle commit")
                 if action == 'h':
                     # Handle the commit.
+                    #print("before handle commit h")
                     self.handle_child_commit(conn, addr)
+                    #print("after handle commit h")
                 elif action == 'p':
                     # Handle the pull.
+                    #print("before handle pull")
                     self.handle_pull(conn, addr)
+                    #print("after handle pull")
+                elif action =='s':
+                    self.finished_children_count += 1
+                    print("finished_children_count = " +str(self.finished_children_count))
                 #check if need commit the weight to parent server
                 with self.mutex:
-                	#block the update of local parameters when it commits to the parent parameter server
-                	if self.get_num_updates() > 1:
-                		residual = self.center_variable - self.center_variable_old
-                		self.commit(residual)
-                		self.pull()
-                		self.reset_update_counter()
-                	
-
+                    #block the update of local parameters when it commits to the parent parameter server
+                    if self.get_num_updates() > 1.0 :
+                        residual = self.center_variable - self.center_variable_old
+                        self.commit(residual)
+                        self.pull()
+                        self.reset_update_counter()
+                        print("commit and pull to parent server ")
         except Exception as e:
             print(e)
 
@@ -236,21 +246,31 @@ class SocketDistributedParameterServer(DistributedParameterServer):
                 thread.start()
                 # Store the connection in the dictionary.
                 self.connections.append(thread)
+                self.connected_children_and_excutor_count += 1
+                print("connected_children_and_excutor_count = " +str(self.connected_children_and_excutor_count))
             except Exception as e:
                 print(e)
+        print("stopped parameter server running")
 
     def stop(self):
         """Stop the parameter server. This will also cleanup all existing connections."""
         self.running = False
         # Check if a socket is allocated.
         if self.socket_child:
-            self.cleanup_connections()
+            print("cleanup_connections")
+            #need to figure out why the threads cannot join successfully
+            #self.cleanup_connections()
+            print("finalize")
             self.finalize()
+            print("socket_child.close")
             self.socket_child.close()
+            print("cancel_accept")
             self.cancel_accept()
             self.socket_child = None
 
         self.connections = []
+        """notify its parents to stop"""
+        self.socket_parent.sendall(b's')
 
     def finalize(self):
         """Method that is called when the parameter server stops."""
@@ -278,7 +298,7 @@ class ADAGDistributedParameterServer(SocketDistributedParameterServer):
         super(ADAGDistributedParameterServer, self).__init__(model, ip_list, master_port, num_children,com_window)
         self.center_variable = np.asarray(self.model.get_weights())
         self.center_variable_old = np.asarray(self.model.get_weights())
-
+        self.com_window = com_window
     def handle_executor_commit(self, conn, addr):
         # Receive the parameters from the remote node.
         data = recv_data(conn)
@@ -286,8 +306,8 @@ class ADAGDistributedParameterServer(SocketDistributedParameterServer):
         r = data['residual']
         with self.mutex:
             # Update the center variable.
-            self.center_variable = self.center_variable + 1.0/com_window * r
-        	# Increment the number of parameter server updates.
+            self.center_variable = self.center_variable + 1.0/self.com_window * r
+            # Increment the number of parameter server updates.
             self.next_executor_update()
 
     def handle_child_commit(self, conn, addr):
@@ -298,7 +318,7 @@ class ADAGDistributedParameterServer(SocketDistributedParameterServer):
         with self.mutex:
             # Update the center variable.
             self.center_variable = self.center_variable + r
-        	# Increment the number of parameter server updates.
+            # Increment the number of parameter server updates.
             self.next_child_update()
 
     def handle_pull(self, conn, addr):
@@ -312,7 +332,7 @@ class ADAGDistributedParameterServer(SocketDistributedParameterServer):
         # Fetch the raw center variables.
         with self.mutex:
             cv = copy.deepcopy(self.center_variable)
-        # Send the data over the socket.
+            # Send the data over the socket.
         send_data(conn, cv)
 
     def finalize(self):
@@ -320,14 +340,14 @@ class ADAGDistributedParameterServer(SocketDistributedParameterServer):
         self.model.set_weights(self.center_variable)
 
     def commit(self, residual):
-    	#establish the connection to its parent
-    	if self.socket_parent is None:
-    		connect()
+        #establish the connection to its parent
+        if self.socket_parent is None:
+            self.connect()
         """Sends the gradient residual to the parameter server."""
         data = {}
         data['worker_id'] = -1
         data['residual'] = residual
         # Request a commit from the parameter server.
-        self.socket.sendall(b'h')
+        self.socket_parent.sendall(b'h')
         # Send the data to the paramter server.
         send_data(self.socket_parent, data)
