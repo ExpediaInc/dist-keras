@@ -165,7 +165,7 @@ class SocketParameterServer(ParameterServer):
                 if action == 'c':
                     # Handle the commit.
                     self.handle_commit(conn, addr)
-                if action == 'h':
+                elif action == 'h':
                     # Handle the child commit from distributed parameter server.
                     self.handle_commit(conn, addr)
                 elif action == 'p':

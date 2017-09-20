@@ -928,7 +928,7 @@ class ADAGWithDistributedParameterServer(AsynchronousDistributedTrainer):
         # Set algorithm parameters.
         self.communication_window = communication_window
         self.num_children = num_children
-        self.communication_window_executor = 3
+        self.communication_window_executor = 1
         self.master_host_executor = "0.0.0.0"
 
     def allocate_worker(self):
@@ -974,10 +974,7 @@ class ADAGWithDistributedParameterServer(AsynchronousDistributedTrainer):
             dataframe = dataframe.coalesce(parallelism)
         else:
             dataframe = dataframe.repartition(parallelism)
-        dataframe.cache()
-        print dataframe.count()
         #get one partition id for each worker ip
-        from random import shuffle
         self.worker_ip_id = dict(dataframe.rdd\
                                         .mapPartitionsWithIndex(lambda id,y : [(socket.gethostbyname(socket.gethostname()),id)])\
                                         .collect())
