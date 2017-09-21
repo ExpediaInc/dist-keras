@@ -167,8 +167,13 @@ class SocketDistributedParameterServer(DistributedParameterServer):
         # Request a pull from the parameter server.
         self.socket_parent.sendall(b'p')
         # Fetch the center variable from the parent parameter server.
-        self.center_variable = np.asarray(recv_data(self.socket_parent))
-        self.center_variable_old = copy.deepcopy(self.center_variable)
+        temp = np.asarray(recv_data(self.socket_parent))
+        with self.mutex:
+            #add the culmulated commit from children
+            self.center_variable = temp + self.center_variable - self.center_variable_old
+        self.center_variable_old = temp
+        #unblock the commit
+        self.block_commit_to_parent = False
 
     def commit(self, residual):
         """Sends the gradient residual to the parameter server."""
@@ -186,6 +191,24 @@ class SocketDistributedParameterServer(DistributedParameterServer):
             file_descriptor.close()
         except Exception as e:
             print(e)
+
+    def commit_and_pull_from_parent(self):
+        """This method will try to commit to and pull from parent parameter server.
+        Only one thread can do commit and pull in the same time
+        """
+        if not self.block_commit_to_parent:
+            ready_to_commit_bool = False
+            with self.mutex:
+                if self.get_num_updates() > 1.0 :
+                    #reset the counter
+                    self.reset_update_counter()
+                    ready_to_commit_bool = True
+                    residual = self.center_variable - self.center_variable_old
+                    self.block_commit_to_parent =True
+                    self.center_variable_old = copy.deepcopy(self.center_variable)
+            if ready_to_commit_bool:
+                self.commit(residual) #no need to hold mutex
+                self.pull() 
 
     def handle_connection(self, conn, addr):
         """
@@ -212,13 +235,8 @@ class SocketDistributedParameterServer(DistributedParameterServer):
                     self.finished_children_count += 1
                     print("finished_children_count = " +str(self.finished_children_count))
                 #check if need commit the weight to parent server
-                with self.mutex:
-                    #block the update of local parameters when it commits to the parent parameter server
-                    if self.get_num_updates() > 1.0 :
-                        residual = self.center_variable - self.center_variable_old
-                        self.commit(residual)
-                        self.pull()
-                        self.reset_update_counter()
+                #only one thread is able to commit to and pull from parent server
+                self.commit_and_pull_from_parent()
         except Exception as e:
             print(e)
 
@@ -226,6 +244,7 @@ class SocketDistributedParameterServer(DistributedParameterServer):
         """Starts the parameter server."""
         # Set the running flag.
         self.running = True
+        self.block_commit_to_parent = False
 
     def run(self):
         print("""Main event loop of the parameter server.""")
@@ -330,6 +349,7 @@ class ADAGDistributedParameterServer(SocketDistributedParameterServer):
 
     def commit(self, residual):
         #establish the connection to its parent
+        #need a way to coordinate the parent socket connection setup between different machine
         if self.socket_parent is None:
             self.connect()
         data = {}
