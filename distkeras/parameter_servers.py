@@ -131,6 +131,7 @@ class SocketParameterServer(ParameterServer):
             conn: socket. The opened connection.
             addr: addr. Address of the remote host.
         """
+        conn.sendall(b'a')
         # Fetch the raw center variables.
         with self.mutex:
             center_variable = self.model.get_weights()
@@ -251,6 +252,7 @@ class DeltaParameterServer(SocketParameterServer):
             conn: socket. The opened connection.
             addr: addr. Address of the remote host.
         """
+        conn.sendall(b'a')
         # Fetch the raw center variables.
         with self.mutex:
             cv = copy.deepcopy(self.center_variable)
@@ -295,6 +297,7 @@ class ADAGParameterServer(SocketParameterServer):
             conn: socket. The opened connection.
             addr: addr. Address of the remote host.
         """
+        conn.sendall(b'a')
         # Fetch the raw center variables.
         with self.mutex:
             cv = copy.deepcopy(self.center_variable)
@@ -329,6 +332,7 @@ class DynSGDParameterServer(SocketParameterServer):
             conn: socket. The opened connection.
             addr: addr. Address of the remote host.
         """
+        conn.sendall(b'a')
         # Allocate a new dictionary.
         data = {}
         # Fetch the raw center variables.
@@ -396,6 +400,7 @@ class ExperimentalParameterServer(SocketParameterServer):
             conn: socket. The opened connection.
             addr: addr. Address of the remote host.
         """
+        conn.sendall(b'a')
         # Fetch the raw center variables.
         with self.mutex:
             cv = copy.deepcopy(self.center_variable)

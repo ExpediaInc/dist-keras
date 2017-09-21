@@ -1002,4 +1002,3 @@ class ADAGWithDistributedParameterServer(AsynchronousDistributedTrainer):
         self.stop_service()
 
         return self.parameter_server.get_model()
-

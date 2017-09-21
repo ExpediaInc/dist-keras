@@ -7,6 +7,7 @@ import numpy as np
 import socket
 
 import threading
+import time
 
 from distkeras.networking import recv_data
 from distkeras.networking import send_data
@@ -141,6 +142,15 @@ class SocketDistributedParameterServer(DistributedParameterServer):
         """
         raise NotImplementedError
 
+    def setup_pull(self):
+        self.socket_parent.sendall(b'p')
+        #self.socket_parent.settimeout(None)
+        action = self.socket_parent.recv(1).decode()
+        while action != 'a':
+            self.socket_parent.sendall(b'p')
+            action = self.socket_parent.recv(1).decode()
+        #self.socket_parent.settimeout(None)
+
     def handle_pull(self, conn, addr):
         """Handles parameter requests coming from the workers. This will
         actually send the model parameters to the requesting host.
@@ -149,6 +159,7 @@ class SocketDistributedParameterServer(DistributedParameterServer):
             conn: socket. The opened connection.
             addr: addr. Address of the remote host.
         """
+        conn.sendall(b'a')
         # Fetch the raw center variables.
         with self.mutex:
             cv = copy.deepcopy(self.center_variable)
@@ -165,7 +176,7 @@ class SocketDistributedParameterServer(DistributedParameterServer):
     		self.connect()
         """Requests the center variable from the parameter server."""
         # Request a pull from the parameter server.
-        self.socket_parent.sendall(b'p')
+        self.setup_pull()
         # Fetch the center variable from the parent parameter server.
         temp = np.asarray(recv_data(self.socket_parent))
         with self.mutex:
@@ -225,7 +236,7 @@ class SocketDistributedParameterServer(DistributedParameterServer):
                 if action == 'c':
                     # Handle the commit.
                     self.handle_executor_commit(conn, addr)
-                if action == 'h':
+                elif action == 'h':
                     # Handle the commit.
                     self.handle_child_commit(conn, addr)
                 elif action == 'p':
@@ -234,6 +245,11 @@ class SocketDistributedParameterServer(DistributedParameterServer):
                 elif action =='s':
                     self.finished_children_count += 1
                     print("finished_children_count = " +str(self.finished_children_count))
+                    #confirm stop is recived
+                    conn.sendall(b'a')
+                #else:
+                #    print("code error  action = " +str(action))
+                #    time.sleep(1) 
                 #check if need commit the weight to parent server
                 #only one thread is able to commit to and pull from parent server
                 self.commit_and_pull_from_parent()
@@ -279,6 +295,8 @@ class SocketDistributedParameterServer(DistributedParameterServer):
         self.connections = []
         """notify its parents to stop"""
         self.socket_parent.sendall(b's')
+        if self.socket_parent.recv(1).decode() == 'a':
+                print """receive parent server ack""" + str(self.parent_ip)
 
     def finalize(self):
         """Method that is called when the parameter server stops."""
@@ -337,6 +355,8 @@ class ADAGDistributedParameterServer(SocketDistributedParameterServer):
             conn: socket. The opened connection.
             addr: addr. Address of the remote host.
         """
+        #send confirmation
+        conn.sendall(b'a')
         # Fetch the raw center variables.
         with self.mutex:
             cv = copy.deepcopy(self.center_variable)

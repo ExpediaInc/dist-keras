@@ -224,10 +224,14 @@ class NetworkWorker(Worker):
         """Connect with the remote parameter server."""
         self.socket = connect(self.master_host, self.master_port, self.disable_nagle)
 
+    def setup_pull(self):
+        self.socket.sendall(b'p')
+        action = self.socket.recv(1).decode()
+
     def pull(self):
         """Requests the center variable from the parameter server."""
         # Request a pull from the parameter server.
-        self.socket.sendall(b'p')
+        self.setup_pull()
         # Fetch the center variable from the parameter server.
         self.center_variable = np.asarray(recv_data(self.socket))
 
@@ -485,7 +489,7 @@ class DynSGDWorker(NetworkWorker):
     def pull(self):
         """Requests the center variable and last update from the parameter server."""
         # Request a pull from the parameter server.
-        self.socket.sendall(b'p')
+        self.setup_pull()
         # Fetch the dictionary from the parameter server.
         data = recv_data(self.socket)
         self.center_variable = np.asarray(data['model'])
@@ -554,7 +558,7 @@ class ExperimentalWorker(NetworkWorker):
     def pull(self):
         """Requests the center variable from the parameter server."""
         # Request a pull from the parameter server.
-        self.socket.sendall(b'p')
+        self.setup_pull()
         # Fetch the center variable from the parameter server.
         self.center_variable = np.asarray(recv_data(self.socket))
 
@@ -608,6 +612,7 @@ class ADAGWorkerWithDistributedParameterServer(NetworkWorker):
 
     def optimize(self):
         W1 = np.asarray(self.model.get_weights())
+        print("""before optimize""" + str(self.get_worker_id()))
         while True:
             X, Y = self.get_next_minibatch()
             h = self.model.train_on_batch(X, Y)
@@ -641,18 +646,23 @@ class ADAGWorkerWithDistributedParameterServer(NetworkWorker):
             self.distributed_parameter_server = ADAGDistributedParameterServer(self.model, self.master_port, self.ip_list, self.num_children, self.communication_window_parameter_server)
             self.distributed_parameter_server_thread = threading.Thread(target=self.startDistributedParameterServerService)
             self.distributed_parameter_server_thread.start()
-            print (""" after tself.distributed_parameter_server_thread.start() """ + str(self.worker_id))
+            print (""" after self.distributed_parameter_server_thread.start() """ + str(self.worker_id))
+            time.sleep(20)
         else:
             print("""wait the paramter server to be started""")
             np.random.seed(self.get_worker_id())
-            time.sleep(10+np.random.randint(10))
+            time.sleep(20+np.random.randint(10))
             print("""start to connect""")
 
     def cleanDistributedParameterServer(self):
         """Set up the distributed parameter server"""
         """Only clean server service once per machine"""
+
         if self.worker_ip_id[socket.gethostbyname(socket.gethostname())] == self.worker_id:
             self.socket.sendall(b's')
+            action = self.socket.recv(1).decode()
+            if action == 'a' :
+                print """receive server ack """ + str(self.worker_id)
             while self.distributed_parameter_server.finished_children_count < self.distributed_parameter_server.connected_children_and_excutor_count:
                 time.sleep(1)
                 print(str(self.distributed_parameter_server.finished_children_count)+" < "+str(self.distributed_parameter_server.connected_children_and_excutor_count) )
@@ -661,8 +671,13 @@ class ADAGWorkerWithDistributedParameterServer(NetworkWorker):
             self.distributed_parameter_server_thread.join()
             self.distributed_parameter_server_thread = None
         else:
-            print """notify server the job is done"""
+            print """notify server the job is done""" + str(self.worker_id)
             self.socket.sendall(b's')
+            action = self.socket.recv(1).decode()
+            if action == 'a':
+                print """receive server ack """ + str(self.worker_id)
+            else:
+                print """receive server not correctly ack """ + str(self.worker_id)+ str(action)
 
     def train(self, worker_id, iterator):
         self.start_prefetching_thread(iterator)
@@ -670,14 +685,19 @@ class ADAGWorkerWithDistributedParameterServer(NetworkWorker):
         self.setupDistributedParameterServer()
         self.prepare_model()
         self.connect()
+        print """before pull1 """ + str(self.worker_id)
         self.pull()
+        print """after pull1 """ + str(self.worker_id)
         self.model.set_weights(self.center_variable)
         try:
             self.optimize()
         except Exception as e:
             self.is_prefetching = False
+            print "optimize exception" + str(worker_id)
             print(e)
+        print("""before prefetching_thread """ +str(worker_id))
         self.prefetching_thread.join(timeout=1)
+        print("""after prefetching_thread """ +str(worker_id))
         self.cleanDistributedParameterServer()
         self.socket.close()
         print("""after socket close """ +str(worker_id))

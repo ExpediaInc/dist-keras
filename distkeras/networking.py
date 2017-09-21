@@ -58,7 +58,8 @@ def recv_data(connection):
     serialized_data = recvall(connection, length)
     # Deserialize the data.
     import lz4
-    data = pickle.loads(lz4.block.decompress(serialized_data))
+    #data = pickle.loads(lz4.block.decompress(serialized_data))
+    data = pickle.loads(serialized_data)
     return data
 
 
@@ -78,7 +79,8 @@ def send_data(connection, data):
     """
     # Serialize the data.
     import lz4
-    serialized_data = lz4.block.compress(pickle.dumps(data, -1))
+    #serialized_data = lz4.block.compress(pickle.dumps(data, -1))
+    serialized_data = pickle.dumps(data, -1)
     length = len(serialized_data)
     # Serialize the number of bytes in the data.
     serialized_length = str(length).zfill(20)
