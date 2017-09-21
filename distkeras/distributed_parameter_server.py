@@ -201,19 +201,13 @@ class SocketDistributedParameterServer(DistributedParameterServer):
                 # Check if the action is a commit (most of the cases).
                 if action == 'c':
                     # Handle the commit.
-                    #print("before handle commit")
                     self.handle_executor_commit(conn, addr)
-                    #print("after handle commit")
                 if action == 'h':
                     # Handle the commit.
-                    #print("before handle commit h")
                     self.handle_child_commit(conn, addr)
-                    #print("after handle commit h")
                 elif action == 'p':
                     # Handle the pull.
-                    #print("before handle pull")
                     self.handle_pull(conn, addr)
-                    #print("after handle pull")
                 elif action =='s':
                     self.finished_children_count += 1
                     print("finished_children_count = " +str(self.finished_children_count))
@@ -222,11 +216,9 @@ class SocketDistributedParameterServer(DistributedParameterServer):
                     #block the update of local parameters when it commits to the parent parameter server
                     if self.get_num_updates() > 1.0 :
                         residual = self.center_variable - self.center_variable_old
-                        print("before commit and pull to parent server ")
                         self.commit(residual)
                         self.pull()
                         self.reset_update_counter()
-                        print("after commit and pull to parent server ")
         except Exception as e:
             print(e)
 
@@ -258,14 +250,10 @@ class SocketDistributedParameterServer(DistributedParameterServer):
         self.running = False
         # Check if a socket is allocated.
         if self.socket_child:
-            print("cleanup_connections")
             #need to figure out why the threads cannot join successfully
             #self.cleanup_connections()
-            print("finalize")
             self.finalize()
-            print("socket_child.close")
             self.socket_child.close()
-            print("cancel_accept")
             self.cancel_accept()
             self.socket_child = None
 
@@ -344,7 +332,6 @@ class ADAGDistributedParameterServer(SocketDistributedParameterServer):
         #establish the connection to its parent
         if self.socket_parent is None:
             self.connect()
-        print """Sends the gradient residual to the parameter server."""
         data = {}
         data['worker_id'] = -1
         data['residual'] = residual

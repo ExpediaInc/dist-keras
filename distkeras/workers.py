@@ -607,14 +607,12 @@ class ADAGWorkerWithDistributedParameterServer(NetworkWorker):
         send_data(self.socket, data)
 
     def optimize(self):
-        print("""Optimization procedure of ADAG.""")
         W1 = np.asarray(self.model.get_weights())
         while True:
             X, Y = self.get_next_minibatch()
-            print("""train_on_batch""")
             h = self.model.train_on_batch(X, Y)
             self.add_history(h)
-            sys.stderr.write("Worker_id "+ str(self.get_worker_id()) +"  Epoch: " + str(self.current_epoch) + "  Iteration: " + str(self.iteration) + "  loss:" + str(h) + "\n")
+            sys.stderr.write("  Epoch: " + str(self.current_epoch) + "  Iteration: " + str(self.iteration) + "  loss:" + str(h) + "\n")
             sys.stderr.flush()
             if self.iteration % self.communication_window_executor == 0:
                 W2 = np.asarray(self.model.get_weights())
@@ -660,9 +658,7 @@ class ADAGWorkerWithDistributedParameterServer(NetworkWorker):
                 print(str(self.distributed_parameter_server.finished_children_count)+" < "+str(self.distributed_parameter_server.connected_children_and_excutor_count) )
             print """start stop distributed_parameter_server"""
             self.distributed_parameter_server.stop()
-            print """distributed_parameter_server.stop"""
             self.distributed_parameter_server_thread.join()
-            print """after join """
             self.distributed_parameter_server_thread = None
         else:
             print """notify server the job is done"""
@@ -672,13 +668,9 @@ class ADAGWorkerWithDistributedParameterServer(NetworkWorker):
         self.start_prefetching_thread(iterator)
         self.set_worker_id(worker_id)
         self.setupDistributedParameterServer()
-        print("""Training procedure of a networked worker with distributed parameter server.""" +str(worker_id))
         self.prepare_model()
-        print("""before connect """ +str(worker_id))
         self.connect()
-        print("""after connect """ +str(worker_id))
         self.pull()
-        print("""after pull """ +str(worker_id))
         self.model.set_weights(self.center_variable)
         try:
             self.optimize()
@@ -686,7 +678,6 @@ class ADAGWorkerWithDistributedParameterServer(NetworkWorker):
             self.is_prefetching = False
             print(e)
         self.prefetching_thread.join(timeout=1)
-        print("""after prefetching_thread join  """ +str(worker_id))
         self.cleanDistributedParameterServer()
         self.socket.close()
         print("""after socket close """ +str(worker_id))
