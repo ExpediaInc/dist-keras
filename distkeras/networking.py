@@ -95,8 +95,6 @@ def connect(host, port, disable_nagle=True):
     else:
         fd.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 0)
     # Connect to the specified URI.
-    status = fd.connect((host, port))
-    #connect until success
-    while status == 0:
-        status = fd.connect((host, port))
+    fd.connect((host, port))
+
     return fd
