@@ -94,6 +94,8 @@ def connect(host, port, disable_nagle=True):
         fd.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
     else:
         fd.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 0)
+    #blocking connection
+    fd.settimeout(None)
     # Connect to the specified URI.
     fd.connect((host, port))
 
