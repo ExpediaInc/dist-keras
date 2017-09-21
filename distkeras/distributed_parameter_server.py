@@ -171,7 +171,7 @@ class SocketDistributedParameterServer(DistributedParameterServer):
         with self.mutex:
             #add the culmulated commit from children
             self.center_variable = temp + self.center_variable - self.center_variable_old
-        self.center_variable_old = temp
+            self.center_variable_old = temp
         #unblock the commit
         self.block_commit_to_parent = False
 
