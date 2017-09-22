@@ -986,6 +986,7 @@ class ADAGWithDistributedParameterServer(AsynchronousDistributedTrainer):
         self.ip_list = [socket.gethostbyname(socket.gethostname())] + list(set(dataframe.rdd\
                                     .mapPartitionsWithIndex(lambda id,y : [socket.gethostbyname(socket.gethostname())])\
                                     .collect()))
+        print(self.ip_list)
         #self.ip_list = [socket.gethostbyname(socket.gethostname())]
         # Allocate a worker.
         worker = self.allocate_worker()
