@@ -694,7 +694,8 @@ class ADAGWorkerWithDistributedParameterServer(NetworkWorker):
         except Exception as e:
             self.is_prefetching = False
             print "optimize exception " + str(worker_id)
-            print(e + str(worker_id) )
+            print(e)
+            
         print("""before prefetching_thread """ +str(worker_id))
         self.prefetching_thread.join(timeout=1)
         print("""after prefetching_thread """ +str(worker_id))
