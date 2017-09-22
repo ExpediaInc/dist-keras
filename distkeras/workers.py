@@ -647,11 +647,11 @@ class ADAGWorkerWithDistributedParameterServer(NetworkWorker):
             self.distributed_parameter_server_thread = threading.Thread(target=self.startDistributedParameterServerService)
             self.distributed_parameter_server_thread.start()
             print (""" after self.distributed_parameter_server_thread.start() """ + str(self.worker_id))
-            time.sleep(20)
+            time.sleep(60)
         else:
             print("""wait the paramter server to be started""")
             np.random.seed(self.get_worker_id())
-            time.sleep(20+np.random.randint(10))
+            time.sleep(60+np.random.randint(10))
             print("""start to connect""")
 
     def cleanDistributedParameterServer(self):
