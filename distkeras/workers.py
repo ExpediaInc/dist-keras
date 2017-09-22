@@ -598,6 +598,7 @@ class ADAGWorkerWithDistributedParameterServer(NetworkWorker):
         self.worker_ip_id = worker_ip_id
         self.ip_list = ip_list
         self.iteration = 1
+        self.mutex = threading.Lock()
 
     def commit(self, residual):
         """Sends the gradient residual to the parameter server."""
@@ -693,8 +694,8 @@ class ADAGWorkerWithDistributedParameterServer(NetworkWorker):
             self.optimize()
         except Exception as e:
             self.is_prefetching = False
-            print "optimize exception" + str(worker_id)
-            print(e)
+            print "optimize exception " + str(worker_id)
+            print(e + str(worker_id) )
         print("""before prefetching_thread """ +str(worker_id))
         self.prefetching_thread.join(timeout=1)
         print("""after prefetching_thread """ +str(worker_id))

@@ -172,6 +172,9 @@ class SocketParameterServer(ParameterServer):
                 elif action == 'p':
                     # Handle the pull.
                     self.handle_pull(conn, addr)
+                elif action =='s':
+                    #confirm stop is recived
+                    conn.sendall(b'a')
         except Exception as e:
             print(e)
 
