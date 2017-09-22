@@ -80,6 +80,7 @@ class SocketDistributedParameterServer(DistributedParameterServer):
         self.socket_child = None
         self.running = False
         self.connections = []
+        self.in_mutex = threading.Lock()
         self.mutex = threading.Lock()
         self.parent_ip = self.find_parent_ip(ip_list, num_children) 
         self.disable_nagle = True
@@ -178,7 +179,8 @@ class SocketDistributedParameterServer(DistributedParameterServer):
         # Request a pull from the parameter server.
         self.setup_pull()
         # Fetch the center variable from the parent parameter server.
-        temp = np.asarray(recv_data(self.socket_parent))
+        with self.in_mutex:
+            temp = np.asarray(recv_data(self.socket_parent))
         with self.mutex:
             #add the culmulated commit from children
             self.center_variable = temp + self.center_variable - self.center_variable_old
@@ -337,8 +339,9 @@ class ADAGDistributedParameterServer(SocketDistributedParameterServer):
             self.next_executor_update()
 
     def handle_child_commit(self, conn, addr):
-        # Receive the parameters from the remote node.
-        data = recv_data(conn)
+        with self.in_mutex:
+            # Receive the parameters from the remote node.
+            data = recv_data(conn)
         # Extract the data from the dictionary.
         r = data['residual']
         with self.mutex:
