@@ -173,7 +173,7 @@ class SocketDistributedParameterServer(DistributedParameterServer):
     def pull(self):
     	#establish the connection
     	if self.socket_parent is None:
-    		self.connect()
+            self.connect()
         """Requests the center variable from the parameter server."""
         # Request a pull from the parameter server.
         self.setup_pull()

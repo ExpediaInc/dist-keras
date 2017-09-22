@@ -598,7 +598,6 @@ class ADAGWorkerWithDistributedParameterServer(NetworkWorker):
         self.worker_ip_id = worker_ip_id
         self.ip_list = ip_list
         self.iteration = 1
-        self.mutex = threading.Lock()
 
     def commit(self, residual):
         """Sends the gradient residual to the parameter server."""
