@@ -263,6 +263,7 @@ class SocketDistributedParameterServer(DistributedParameterServer):
             try:
                 # Accept incoming connections.
                 conn, addr = self.socket_child.accept()
+                print (addr)
                 # Handle the connection.
                 thread = threading.Thread(target=self.handle_connection, args=(conn, addr))
                 thread.start()
@@ -354,7 +355,7 @@ class ADAGDistributedParameterServer(SocketDistributedParameterServer):
         with self.mutex:
             cv = copy.deepcopy(self.center_variable)
             # Send the data over the socket.
-        if addr[1] =='127.0.0.1':
+        if addr[0] =='127.0.0.1':
             with self.out_mutex:
                 #send confirmation
                 conn.sendall(b'a')
