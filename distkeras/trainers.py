@@ -921,14 +921,14 @@ class ADAGWithDistributedParameterServer(AsynchronousDistributedTrainer):
 
     def __init__(self, keras_model, worker_optimizer, loss, metrics=["accuracy"], num_workers=2, batch_size=32,
                  features_col="features", label_col="label", num_epoch=1, communication_window=12, master_port=5000, loss_weights=None,
-                 num_children=3):
+                 num_children=3, communication_window_executor=10):
         # Initialize the parent object.
         super(ADAGWithDistributedParameterServer, self).__init__(keras_model, worker_optimizer, loss, metrics, num_workers,
                                    batch_size, features_col, label_col, num_epoch, master_port, loss_weights)
         # Set algorithm parameters.
         self.communication_window = communication_window
         self.num_children = num_children
-        self.communication_window_executor = 1
+        self.communication_window_executor = communication_window_executor
         self.master_host_executor = "0.0.0.0"
 
     def allocate_worker(self):
