@@ -921,7 +921,7 @@ class ADAGWithDistributedParameterServer(AsynchronousDistributedTrainer):
 
     def __init__(self, keras_model, worker_optimizer, loss, metrics=["accuracy"], num_workers=2, batch_size=32,
                  features_col="features", label_col="label", num_epoch=1, communication_window=12, master_port=5000, loss_weights=None,
-                 num_children=3, communication_window_executor=10):
+                 num_children=3, communication_window_executor=10,num_iter_loss_avg = 1000):
         # Initialize the parent object.
         super(ADAGWithDistributedParameterServer, self).__init__(keras_model, worker_optimizer, loss, metrics, num_workers,
                                    batch_size, features_col, label_col, num_epoch, master_port, loss_weights)
@@ -930,13 +930,14 @@ class ADAGWithDistributedParameterServer(AsynchronousDistributedTrainer):
         self.num_children = num_children
         self.communication_window_executor = communication_window_executor
         self.master_host_executor = "0.0.0.0"
+        self.num_iter_loss_avg = num_iter_loss_avg
 
     def allocate_worker(self):
         """Allocate experimental worker."""
         worker = ADAGWorkerWithDistributedParameterServer(self.master_model, self.worker_optimizer, self.loss, self.loss_weights, self.metrics,
                             self.features_column, self.label_column, self.batch_size, self.num_epoch,
                             self.master_host_executor, self.master_port, self.communication_window_executor, 
-                            self.num_children, self.communication_window, self.worker_ip_id, self.ip_list)
+                            self.num_children, self.communication_window, self.worker_ip_id, self.ip_list, self.num_iter_loss_avg)
         return worker
 
 
@@ -1003,3 +1004,5 @@ class ADAGWithDistributedParameterServer(AsynchronousDistributedTrainer):
         self.stop_service()
 
         return self.parameter_server.get_model()
+
+

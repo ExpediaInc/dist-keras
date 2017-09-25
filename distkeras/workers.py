@@ -56,7 +56,7 @@ class Worker(object):
     """
 
     def __init__(self, model, optimizer, loss, loss_weights, metrics=["accuracy"], features_col="features", label_col="label",
-                 batch_size=32, num_epoch=1, learning_rate=1.0):
+                 batch_size=32, num_epoch=1, learning_rate=1.0, num_iter_loss_avg = 1000):
         assert isinstance(optimizer, (str, Optimizer)), "'optimizer' must be a string or a Keras Optimizer instance"
         assert isinstance(features_col, (str, list)), "'features_col' must be a string or a list of strings"
         assert isinstance(label_col, (str, list)), "'label_col' must be a string or a list of strings"
@@ -78,6 +78,7 @@ class Worker(object):
         self.num_inputs = len(self.features_column)
         self.num_outputs = len(self.label_column)
         self.current_epoch = 0
+        self.num_iter_loss_avg = num_iter_loss_avg
 
     def set_max_prefetch(self, max_mini_batches):
         """Sets the maximum number of mini-batches that can be prefetched."""
@@ -209,9 +210,9 @@ class NetworkWorker(Worker):
     """Abstract class of a worker who shares the variables using the network."""
 
     def __init__(self, model, optimizer, loss, loss_weights, metrics=["accuracy"], features_col="features", label_col="label",
-                 batch_size=32, num_epoch=1, master_host="localhost", master_port=5000, learning_rate=1.0):
+                 batch_size=32, num_epoch=1, master_host="localhost", master_port=5000, learning_rate=1.0, num_iter_loss_avg = 1000):
         super(NetworkWorker, self).__init__(model, optimizer, loss, loss_weights, metrics, features_col,
-                                            label_col, batch_size, num_epoch, learning_rate)
+                                            label_col, batch_size, num_epoch, learning_rate, num_iter_loss_avg)
         self.master_host = master_host
         self.master_port = master_port
         self.socket = None
@@ -219,6 +220,7 @@ class NetworkWorker(Worker):
         self.disable_nagle = True
         self.training_history = []
         self.worker_id = 0
+        self.avg_loss= [None]*self.num_iter_loss_avg
 
     def connect(self):
         """Connect with the remote parameter server."""
@@ -280,6 +282,20 @@ class NetworkWorker(Worker):
         d['iteration'] = self.iteration
         d['timestamp'] = time.time()
         self.training_history.append(d)
+
+    def cacul_avg_loss(self,h, i):
+        """Calculage the avg loss over the last num_iter_loss_avg iterations """
+        self.avg_loss[i%self.num_iter_loss_avg] = h
+        count =0
+        sum_h =None
+        for i in range(len(self.avg_loss)):
+            if self.avg_loss[i] is not None:
+                count += 1
+                if count == 1:
+                    sum_h = self.avg_loss[i]
+                else:
+                    sum_h = [ self.avg_loss[i][j] +sum_h[j] for j in range(len(sum_h))]
+        return [x/count for x in sum_h]
 
     def optimize(self):
         """Optimization procedure of a network worker."""
@@ -587,10 +603,10 @@ class ADAGWorkerWithDistributedParameterServer(NetworkWorker):
 
     def __init__(self, model, optimizer, loss, loss_weights, metrics=["accuracy"], features_col="features", label_col="label",
                  batch_size=32, num_epoch=1, master_host="localhost", master_port=5000, communication_window_executor=1,
-                 num_children=3, communication_window_parameter_server = 10 , worker_ip_id=None, ip_list =None):
+                 num_children=3, communication_window_parameter_server = 10 , worker_ip_id=None, ip_list =None, num_iter_loss_avg = 1000):
         # Initialize the parent object.
         super(ADAGWorkerWithDistributedParameterServer, self).__init__(model, optimizer, loss, loss_weights, metrics, features_col, label_col,
-                                         batch_size, num_epoch, master_host, master_port)
+                                         batch_size, num_epoch, master_host, master_port, num_iter_loss_avg)
         # Initialize ADAG parameters.
         self.communication_window_executor = communication_window_executor
         self.communication_window_parameter_server = communication_window_parameter_server
@@ -617,7 +633,8 @@ class ADAGWorkerWithDistributedParameterServer(NetworkWorker):
             X, Y = self.get_next_minibatch()
             h = self.model.train_on_batch(X, Y)
             self.add_history(h)
-            sys.stderr.write("  Epoch: " + str(self.current_epoch) + "  Iteration: " + str(self.iteration) + "  loss:" + str(h) + "\n")
+            sys.stderr.write("  worker_id: " + str(self.worker_id) + "  Epoch: " + str(self.current_epoch) + "  Iteration: " + str(self.iteration) + "  loss:" + str(h) )
+            sys.stderr.write("  avg_loss:" + str(self.cacul_avg_loss(h,self.iteration)) + "\n")
             sys.stderr.flush()
             if self.iteration % self.communication_window_executor == 0:
                 W2 = np.asarray(self.model.get_weights())
