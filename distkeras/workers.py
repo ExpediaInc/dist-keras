@@ -606,7 +606,8 @@ class ADAGWorkerWithDistributedParameterServer(NetworkWorker):
                  num_children=3, communication_window_parameter_server = 10 , worker_ip_id=None, ip_list =None, num_iter_loss_avg = 1000):
         # Initialize the parent object.
         super(ADAGWorkerWithDistributedParameterServer, self).__init__(model, optimizer, loss, loss_weights, metrics, features_col, label_col,
-                                         batch_size, num_epoch, master_host, master_port, num_iter_loss_avg)
+                                         batch_size, num_epoch, master_host, master_port, num_iter_loss_avg=num_iter_loss_avg)
+
         # Initialize ADAG parameters.
         self.communication_window_executor = communication_window_executor
         self.communication_window_parameter_server = communication_window_parameter_server
