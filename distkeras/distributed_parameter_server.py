@@ -215,7 +215,9 @@ class SocketDistributedParameterServer(DistributedParameterServer):
                     residual = self.center_variable - self.center_variable_old
                     self.center_variable_old = copy.deepcopy(self.center_variable)
                 self.commit(residual) #no need to hold mutex
-                self.pull() 
+                self.pull()
+            #sleep one second
+            time.sleep(1) 
         print("stopped commit_and_pull_from_parent running")
 
     def handle_connection(self, conn, addr):
@@ -273,6 +275,8 @@ class SocketDistributedParameterServer(DistributedParameterServer):
                 print("connected_children_and_excutor_count = " +str(self.connected_children_and_excutor_count))
             except Exception as e:
                 print(e)
+            #sleep one second
+            time.sleep(1)
         print("stopped parameter server running")
 
     def stop(self):
