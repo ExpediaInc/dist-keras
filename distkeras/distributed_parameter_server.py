@@ -264,6 +264,7 @@ class SocketDistributedParameterServer(DistributedParameterServer):
                 # Accept incoming connections.
                 conn, addr = self.socket_child.accept()
                 # Handle the connection.
+                print(addr)
                 thread = threading.Thread(target=self.handle_connection, args=(conn, addr))
                 thread.start()
                 # Store the connection in the dictionary.
