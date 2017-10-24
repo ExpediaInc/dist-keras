@@ -79,6 +79,7 @@ class Worker(object):
         self.num_outputs = len(self.label_column)
         self.current_epoch = 0
         self.num_iter_loss_avg = num_iter_loss_avg
+        self.data_ready =False
 
     def set_max_prefetch(self, max_mini_batches):
         """Sets the maximum number of mini-batches that can be prefetched."""
@@ -123,6 +124,8 @@ class Worker(object):
             optimizer=self.optimizer, metrics=self.metrics)
 
     def get_next_minibatch(self):
+        while (not self.data_ready):
+            time.sleep(1)
         """Returns the next mini-batch."""
         return self.mini_batches.get(timeout=20)
 
@@ -135,6 +138,7 @@ class Worker(object):
 
     def prefetching(self):
         one_epoch = list(self.iterator)
+        self.data_ready = True
         for i in range(self.num_epoch):
             iter_one_epoch= iter(one_epoch)
             self.current_epoch += 1
