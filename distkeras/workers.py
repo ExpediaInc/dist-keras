@@ -128,7 +128,7 @@ class Worker(object):
 
     def start_prefetching_thread(self, iterator):
         """Starts the data prefetching thread."""
-        self.mini_batches = queue.Queue()
+        self.mini_batches = queue.Queue(maxsize=100)
         self.iterator = iterator
         self.prefetching_thread = threading.Thread(target=self.prefetching)
         self.prefetching_thread.start()
@@ -281,7 +281,7 @@ class NetworkWorker(Worker):
         d['worker_id'] = self.worker_id
         d['iteration'] = self.iteration
         d['timestamp'] = time.time()
-        self.training_history.append(d)
+        #self.training_history.append(d)
 
     def cacul_avg_loss(self,h, i):
         """Calculage the avg loss over the last num_iter_loss_avg iterations """
