@@ -281,7 +281,7 @@ class NetworkWorker(Worker):
         d['worker_id'] = self.worker_id
         d['iteration'] = self.iteration
         d['timestamp'] = time.time()
-        #self.training_history.append(d)
+        self.training_history.append(d)
 
     def cacul_avg_loss(self,h, i):
         """Calculage the avg loss over the last num_iter_loss_avg iterations """
@@ -632,11 +632,11 @@ class ADAGWorkerWithDistributedParameterServer(NetworkWorker):
         print("""before optimize""" + str(self.get_worker_id()))
         while True:
             X, Y = self.get_next_minibatch()
-            #h = self.model.train_on_batch(X, Y)
-            #self.add_history(h)
-            #sys.stderr.write("Worker_id: " + str(self.worker_id) + " Epoch: " + str(self.current_epoch) + " Iteration: " + str(self.iteration) + " loss:" + str(h) + "\n")
-            #sys.stderr.write("Worker_id: " + str(self.worker_id) + " Epoch: " + str(self.current_epoch) + " Iteration: " + str(self.iteration) + " avg_loss:" + str(self.cacul_avg_loss(h,self.iteration)) + "\n")
-            #sys.stderr.flush()
+            h = self.model.train_on_batch(X, Y)
+            self.add_history(h)
+            sys.stderr.write("Worker_id: " + str(self.worker_id) + " Epoch: " + str(self.current_epoch) + " Iteration: " + str(self.iteration) + " loss:" + str(h) + "\n")
+            sys.stderr.write("Worker_id: " + str(self.worker_id) + " Epoch: " + str(self.current_epoch) + " Iteration: " + str(self.iteration) + " avg_loss:" + str(self.cacul_avg_loss(h,self.iteration)) + "\n")
+            sys.stderr.flush()
             if self.iteration % self.communication_window_executor == 0:
                 W2 = np.asarray(self.model.get_weights())
                 delta = W2 - W1
