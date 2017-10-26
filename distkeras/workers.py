@@ -134,9 +134,8 @@ class Worker(object):
         self.prefetching_thread.start()
 
     def prefetching(self):
-        one_epoch = list(self.iterator)
-        for i in range(self.num_epoch):
-            iter_one_epoch= iter(one_epoch)
+        partition_iterators_all_epochs = tee(self.iterator, self.num_epoch)
+        for iter_one_epoch in partition_iterators_all_epochs:
             self.current_epoch += 1
             self.is_prefetching = True
             try:
