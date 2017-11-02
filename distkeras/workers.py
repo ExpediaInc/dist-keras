@@ -47,6 +47,8 @@ import socket
 
 import time
 
+import math
+
 ## END Imports. ################################################################
 
 class Worker(object):
@@ -603,7 +605,7 @@ class ADAGWorkerWithDistributedParameterServer(NetworkWorker):
 
     def __init__(self, model, optimizer, loss, loss_weights, metrics=["accuracy"], features_col="features", label_col="label",
                  batch_size=32, num_epoch=1, master_host="localhost", master_port=5000, communication_window_executor=1,
-                 num_children=3, communication_window_parameter_server = 10 , worker_ip_id=None, ip_list =None, num_iter_loss_avg = 1000):
+                 num_children=3, communication_window_parameter_server = 10 , worker_ip_id=None, ip_list =None, num_iter_loss_avg = 1000, warm_up_iter=1, warm_up_scale = 1):
         # Initialize the parent object.
         super(ADAGWorkerWithDistributedParameterServer, self).__init__(model, optimizer, loss, loss_weights, metrics, features_col, label_col,
                                          batch_size, num_epoch, master_host, master_port, num_iter_loss_avg=num_iter_loss_avg)
@@ -615,6 +617,8 @@ class ADAGWorkerWithDistributedParameterServer(NetworkWorker):
         self.worker_ip_id = worker_ip_id
         self.ip_list = ip_list
         self.iteration = 1
+        self.warm_up_iter = warm_up_iter
+        self.warm_up_scale = warm_up_scale
 
     def commit(self, residual):
         """Sends the gradient residual to the parameter server."""
@@ -637,6 +641,10 @@ class ADAGWorkerWithDistributedParameterServer(NetworkWorker):
             sys.stderr.write("Worker_id: " + str(self.worker_id) + " Epoch: " + str(self.current_epoch) + " Iteration: " + str(self.iteration) + " loss:" + str(h) + "\n")
             sys.stderr.write("Worker_id: " + str(self.worker_id) + " Epoch: " + str(self.current_epoch) + " Iteration: " + str(self.iteration) + " avg_loss:" + str(self.cacul_avg_loss(h,self.iteration)) + "\n")
             sys.stderr.flush()
+            if self.iteration < self.warm_up_iter :
+                self.model.optimizer.lr =  math.exp(math.log(self.warm_up_scale)/self.warm_up_iter) * self.model.optimizer.lr
+                sys.stderr.write("Learning rate now is : " + str(K.eval(self.model.optimizer.lr)))
+
             if self.iteration % self.communication_window_executor == 0:
                 W2 = np.asarray(self.model.get_weights())
                 delta = W2 - W1
