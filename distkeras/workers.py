@@ -643,7 +643,7 @@ class ADAGWorkerWithDistributedParameterServer(NetworkWorker):
             sys.stderr.flush()
             if self.iteration < self.warm_up_iter :
                 self.model.optimizer.lr =  math.exp(math.log(self.warm_up_scale)/self.warm_up_iter) * self.model.optimizer.lr
-                sys.stderr.write("Learning rate now is : " + str(K.eval(self.model.optimizer.lr)))
+                sys.stderr.write("Learning rate now is : " + str(K.eval(self.model.optimizer.lr)) + "\n")
 
             if self.iteration % self.communication_window_executor == 0:
                 W2 = np.asarray(self.model.get_weights())
