@@ -311,6 +311,65 @@ class ADAGParameterServer(SocketParameterServer):
         # Set the weights of the model.
         self.model.set_weights(self.center_variable)
 
+class ADAGParameterServerADAM(SocketParameterServer):
+    """A parameter server which integrates the incoming gradient residuals into
+       the model, and integrates them using the ADAG scheme with ADAM parameter optimization.
+
+    # Arguments
+        model: string. Keras model.
+               See: distkeras.utils.serialize_keras_model
+        master_port: int. Port number of the parameter server.
+    """
+
+    def __init__(self, model, master_port):
+        super(ADAGParameterServerADAM, self).__init__(model, master_port)
+        #Stored values
+        self.center_variable = np.asarray(self.model.get_weights())
+        self.m = 0
+        self.v = 0
+        self.t = 0
+
+        #Constants
+        self.a = 0.001
+        self.b1 = 0.9
+        self.b2 = 0.999
+        self.e = 1e-8
+        
+    def handle_commit(self, conn, addr):
+        # Receive the parameters from the remote node.
+        data = recv_data(conn)
+        # Extract the data from the dictionary.
+        r = data['residual']
+        with self.mutex:
+            # Update variables
+            self.t += 1
+            self.m = self.b1 * self.m + (1 - self.b1) * r
+            self.v = self.b2 * self.v + (1 - self.b2) * r ** 2
+            self.m_norm = self.m / (1 - self.b1 ** self.t)
+            self.v_norm = self.v / (1 - self.b2 ** self.t)
+
+            self.center_variable -= self.a * self.m_norm / (math.sqrt(self.v_norm) + self.e)
+        # Increment the number of parameter server updates.
+        self.next_update()
+
+    def handle_pull(self, conn, addr):
+        """Handles parameter requests coming from the workers. This will
+        actually send the model parameters to the requesting host.
+
+        # Arguments:
+            conn: socket. The opened connection.
+            addr: addr. Address of the remote host.
+        """
+        conn.sendall(b'a')
+        # Fetch the raw center variables.
+        with self.mutex:
+            cv = copy.deepcopy(self.center_variable)
+        # Send the data over the socket.
+        send_data(conn, cv)
+
+    def finalize(self):
+        # Set the weights of the model.
+        self.model.set_weights(self.center_variable)
 
 class DynSGDParameterServer(SocketParameterServer):
     """DynSGD parameter server, keeps track of the staleness between updates
