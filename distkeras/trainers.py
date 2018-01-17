@@ -837,6 +837,53 @@ class ADAG(AsynchronousDistributedTrainer):
 
         return parameter_server
 
+class ADAGADAM(AsynchronousDistributedTrainer):
+    """Asynchronous Distributed Adaptive Gradient (Stochastic Gradient Descent).
+
+    Introduced by Hermans et al.
+
+    # Arguments:
+        keras_model: model. Keras model to train.
+        worker_optimizer: string. String representing worker optimizer.
+                          See: https://keras.io/optimizers/
+        loss: string. String representing the loss function.
+              See: https://keras.io/objectives/
+        metrics: list of strings representing model evaluation metrics. Default is ["accuracy"].
+                 See: https://keras.io/metrics/
+        features_col: string or list of strings. Name(s) of the features column(s).
+        num_epoch: int. Number of epochs.
+        batch_size: int. Mini-batch size.
+        num_workers: int. Number of distributed workers.
+        communication_window: int. Staleness parameter.
+                              This parameter describes the number of mini-batches that will be
+                              computed before updating the center variable. For DOWNPOUR based
+                              algorithms we recommend large communication windows.
+        master_port: int. port number for the parameter server.
+        loss_weights: optional list or dict specifying weights for different losses.
+    """
+
+    def __init__(self, keras_model, worker_optimizer, loss, metrics=["accuracy"], num_workers=2, batch_size=32,
+                 features_col="features", label_col="label", num_epoch=1, communication_window=12, master_port=5000, loss_weights=None):
+        # Initialize the parent object.
+        super(ADAGADAM, self).__init__(keras_model, worker_optimizer, loss, metrics, num_workers,
+                                   batch_size, features_col, label_col, num_epoch, master_port, loss_weights)
+        # Set algorithm parameters.
+        self.communication_window = communication_window
+
+    def allocate_worker(self):
+        """Allocate an Adag worker."""
+        worker = ADAGWorker(self.master_model, self.worker_optimizer, self.loss, self.loss_weights, self.metrics,
+                            self.features_column, self.label_column, self.batch_size, self.num_epoch,
+                            self.master_host, self.master_port, self.communication_window)
+
+        return worker
+
+    def allocate_parameter_server(self):
+        """Allocate the Adag parameter server using Adam."""
+        parameter_server = ADAGParameterServerADAM(self.master_model, self.master_port)
+
+        return parameter_server
+
 
 class DynSGD(AsynchronousDistributedTrainer):
     """Dynamic SGD, dynamically maintains learning rate for every worker
