@@ -323,13 +323,14 @@ class ADAGParameterServerADAM(SocketParameterServer):
 
     def __init__(self, model, master_port):
         super(ADAGParameterServerADAM, self).__init__(model, master_port)
-        #Stored values
-        self.center_variable = np.asarray(self.model.get_weights())
-        self.m = 0
-        self.v = 0
-        self.t = 0
 
-        #Constants
+        # Stored vectors
+        self.center_variable = np.asarray(self.model.get_weights()) # Parameters
+        self.m = np.zeros_like(self.center_variable) # First moment vector
+        self.v = np.zeros_like(self.center_variable) # Second moment vector
+        self.t = 0 # Timestep
+
+        # Constants
         self.a = 0.001
         self.b1 = 0.9
         self.b2 = 0.999
@@ -340,15 +341,16 @@ class ADAGParameterServerADAM(SocketParameterServer):
         data = recv_data(conn)
         # Extract the data from the dictionary.
         r = data['residual']
+        assert len(r) == self.center_variable.size
         with self.mutex:
             # Update variables
-            self.t += 1
-            self.m = self.b1 * self.m + (1 - self.b1) * r
-            self.v = self.b2 * self.v + (1 - self.b2) * r ** 2
-            self.m_norm = self.m / (1 - self.b1 ** self.t)
-            self.v_norm = self.v / (1 - self.b2 ** self.t)
+            self.t += 1 # Increase timestep
+            self.m = self.b1 * self.m + (1 - self.b1) * r # Update biased first moment estimate
+            self.v = self.b2 * self.v + (1 - self.b2) * (r ** 2) # Update biased second moment estimate
+            self.m_norm = self.m * 1.0 / (1 - self.b1 ** self.t) # Compute bias-corrected first moment estimate
+            self.v_norm = self.v * 1.0 / (1 - self.b2 ** self.t) # Compute bias-corrected second moment estimate
 
-            self.center_variable -= self.a * self.m_norm / (math.sqrt(self.v_norm) + self.e)
+            self.center_variable -= self.a * self.m_norm / (math.sqrt(self.v_norm) + self.e) # Update parameters
         # Increment the number of parameter server updates.
         self.next_update()
 
