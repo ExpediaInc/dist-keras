@@ -340,8 +340,8 @@ class ADAGParameterServerADAM(SocketParameterServer):
         # Receive the parameters from the remote node.
         data = recv_data(conn)
         # Extract the data from the dictionary.
-        r = data['residual']
-        assert len(r) == self.center_variable.size
+        r = np.asarray(data['residual'])
+        assert r.size == self.center_variable.size # Assert length of gradients given is equal to size of weight parameters
         with self.mutex:
             # Update variables
             self.t += 1 # Increase timestep
@@ -350,7 +350,7 @@ class ADAGParameterServerADAM(SocketParameterServer):
             self.m_norm = self.m * 1.0 / (1 - self.b1 ** self.t) # Compute bias-corrected first moment estimate
             self.v_norm = self.v * 1.0 / (1 - self.b2 ** self.t) # Compute bias-corrected second moment estimate
 
-            self.center_variable -= self.a * self.m_norm / (math.sqrt(self.v_norm) + self.e) # Update parameters
+            self.center_variable -= self.a * self.m_norm / (np.sqrt(self.v_norm) + self.e) # Update parameters
         # Increment the number of parameter server updates.
         self.next_update()
 
