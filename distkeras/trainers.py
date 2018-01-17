@@ -12,6 +12,7 @@ import time
 import socket
 
 from distkeras.parameter_servers import ADAGParameterServer
+from distkeras.parameter_servers import ADAGParameterServerADAM
 from distkeras.parameter_servers import DeltaParameterServer
 from distkeras.parameter_servers import DynSGDParameterServer
 from distkeras.parameter_servers import ExperimentalParameterServer
