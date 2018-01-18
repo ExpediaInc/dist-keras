@@ -342,7 +342,7 @@ class ADAGParameterServerADAM(SocketParameterServer):
         # Extract the data from the dictionary.
         r = np.asarray(data['residual']) * (-1) # Convert residuals to gradient, SGD learning rate in worker level must be set to 1!
         assert r.size == self.center_variable.size # Assert length of gradients given is equal to size of weight parameters
-        print "r: ", sorted(r, descending=True)
+        print "r: ", sorted(r, reverse=True)
         print "r Size: ", r.size
         with self.mutex:
             # Update variables
