@@ -351,8 +351,10 @@ class ADAGParameterServerADAM(SocketParameterServer):
             self.v_norm = self.v * 1.0 / (1 - self.b2 ** self.t) # Compute bias-corrected second moment estimate
 
             print "Before sqrt"
-            self.center_variable -= self.a * self.m_norm / (np.sqrt(self.v_norm) + self.e) # Update parameters
+            v_norm_sqrt = np.sqrt(self.v_norm)
             print "After sqrt"
+            self.center_variable -= self.a * self.m_norm / (v_norm_sqrt + self.e) # Update parameters
+            print "After center_var update"
         # Increment the number of parameter server updates.
         self.next_update()
 
