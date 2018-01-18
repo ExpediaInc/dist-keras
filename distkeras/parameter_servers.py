@@ -358,6 +358,7 @@ class ADAGParameterServerADAM(SocketParameterServer):
             print "before var np sqrt"
             v_norm_sqrt = np.sqrt(self.v_norm)
             print "After sqrt"
+            print "v_norm_sqrt: ", v_norm_sqrt
             self.center_variable -= self.a * self.m_norm / (v_norm_sqrt + self.e) # Update parameters
             print "After center_var update"
         # Increment the number of parameter server updates.
