@@ -354,6 +354,7 @@ class ADAGParameterServerADAM(SocketParameterServer):
             print "np: ", np
             np.sqrt(np.ones(5))
             print "np constant square root success"
+            print "v_norm: ", self.v_norm
             print "before var np sqrt"
             v_norm_sqrt = np.sqrt(self.v_norm)
             print "After sqrt"
