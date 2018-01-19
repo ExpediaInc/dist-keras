@@ -321,10 +321,10 @@ class ADAGParameterServerADAM(SocketParameterServer):
         master_port: int. Port number of the parameter server.
     """
 
-    def __init__(self, model, master_port, alpha=1e-5, beta_1=0.9, beta_2=0.999, epsilon=1e-8):
+    def __init__(self, model, master_port, alpha=1e-5, beta_1=0.9, beta_2=0.999, epsilon=1e-8, worker_learning_rate=1e-5):
         super(ADAGParameterServerADAM, self).__init__(model, master_port)
 
-        # Stored vectos
+        # Stored vectors
         self.center_variable = np.asarray(self.model.get_weights()) # Parameters
         self.m = np.asarray([np.zeros_like(i) for i in self.center_variable]) # First moment vector
         self.v = np.asarray([np.zeros_like(i) for i in self.center_variable]) # Second moment vector
@@ -335,12 +335,13 @@ class ADAGParameterServerADAM(SocketParameterServer):
         self.b1 = beta_1
         self.b2 = beta_2
         self.e = epsilon
+        self.worker_learning_rate = worker_learning_rate
         
     def handle_commit(self, conn, addr):
         # Receive the parameters from the remote node.
         data = recv_data(conn)
         # Extract the data from the dictionary.
-        r = -np.asarray(data['residual']) # Convert residuals to gradient, SGD learning rate in worker level must be set to 1!
+        r = -np.asarray(data['residual']) * 1.0 / self.worker_learning_rate # Convert residuals to gradient, divides by SGD learning rate in worker level
         assert r.shape == self.center_variable.shape # Assert length of gradients given is equal to size of weight parameters
         with self.mutex:
             # Update variables
