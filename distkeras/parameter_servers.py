@@ -324,10 +324,10 @@ class ADAGParameterServerADAM(SocketParameterServer):
     def __init__(self, model, master_port):
         super(ADAGParameterServerADAM, self).__init__(model, master_port)
 
-        # Stored vectors
+        # Stored vectos
         self.center_variable = np.asarray(self.model.get_weights()) # Parameters
-        self.m = np.zeros_like(self.center_variable) # First moment vector
-        self.v = np.zeros_like(self.center_variable) # Second moment vector
+        self.m = np.asarray([np.zeros_like(i) for i in self.center_variable]) # First moment vector
+        self.v = np.asarray([np.zeros_like(i) for i in self.center_variable]) # Second moment vector
         self.t = 0 # Timestep
 
         # Constants
@@ -341,10 +341,7 @@ class ADAGParameterServerADAM(SocketParameterServer):
         data = recv_data(conn)
         # Extract the data from the dictionary.
         r = -np.asarray(data['residual']) # Convert residuals to gradient, SGD learning rate in worker level must be set to 1!
-        print "r Shape: ", r.shape
-        print "center_var Shape: ", self.center_variable.shape
         assert r.shape == self.center_variable.shape # Assert length of gradients given is equal to size of weight parameters
-        print "Min max r: ", np.amin(r), np.nanmax(r)
         print "r: ", r
         with self.mutex:
             # Update variables
@@ -354,17 +351,6 @@ class ADAGParameterServerADAM(SocketParameterServer):
             self.m_norm = self.m * 1.0 / (1 - self.b1 ** self.t) # Compute bias-corrected first moment estimate
             self.v_norm = self.v * 1.0 / (1 - self.b2 ** self.t) # Compute bias-corrected second moment estimate
 
-            # print "Before sqrt"
-            # print "np: ", np
-            # np.sqrt(np.ones(5))
-            # print "np constant square root success"
-            # print "v_norm: ", self.v_norm
-            # print "before var np sqrt"
-            print "v_norm min-max: ", np.amin(self.v_norm), np.nanmax(self.v_norm)
-            print "v_norm shape: ", self.v_norm.shape
-            print "m_norm shape: ", self.m_norm.shape
-            # print "After sqrt"
-            # print "v_norm_sqrt: ", v_norm_sqrt
             self.center_variable -= self.a * np.divide(self.m_norm, self.v_norm ** 0.5 + self.e) # Update parameters
             print "Center_var updated"
         # Increment the number of parameter server updates.
