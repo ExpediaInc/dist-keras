@@ -885,7 +885,7 @@ class ADAGADAM(AsynchronousDistributedTrainer):
 
     def allocate_parameter_server(self):
         """Allocate the Adag parameter server using Adam."""
-        parameter_server = ADAGParameterServerADAM(self.master_model, self.master_port, alpha=self.alpha, beta_1=self.b1, beta_2=self.b2, epsilon=self.e)
+        parameter_server = ADAGParameterServerADAM(self.master_model, self.master_port, alpha=self.a, beta_1=self.b1, beta_2=self.b2, epsilon=self.e)
         return parameter_server
 
 
