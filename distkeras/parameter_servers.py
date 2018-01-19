@@ -321,7 +321,7 @@ class ADAGParameterServerADAM(SocketParameterServer):
         master_port: int. Port number of the parameter server.
     """
 
-    def __init__(self, model, master_port):
+    def __init__(self, model, master_port, alpha=1e-5, beta_1=0.9, beta_2=0.999, epsilon=1e-8):
         super(ADAGParameterServerADAM, self).__init__(model, master_port)
 
         # Stored vectos
@@ -331,10 +331,10 @@ class ADAGParameterServerADAM(SocketParameterServer):
         self.t = 0 # Timestep
 
         # Constants
-        self.a = 0.001
-        self.b1 = 0.9
-        self.b2 = 0.999
-        self.e = 1e-8
+        self.a = alpha
+        self.b1 = beta_1
+        self.b2 = beta_2
+        self.e = epsilon
         
     def handle_commit(self, conn, addr):
         # Receive the parameters from the remote node.
@@ -342,7 +342,6 @@ class ADAGParameterServerADAM(SocketParameterServer):
         # Extract the data from the dictionary.
         r = -np.asarray(data['residual']) # Convert residuals to gradient, SGD learning rate in worker level must be set to 1!
         assert r.shape == self.center_variable.shape # Assert length of gradients given is equal to size of weight parameters
-        print "r: ", r
         with self.mutex:
             # Update variables
             self.t += 1 # Increase timestep
@@ -352,7 +351,6 @@ class ADAGParameterServerADAM(SocketParameterServer):
             self.v_norm = self.v * 1.0 / (1 - self.b2 ** self.t) # Compute bias-corrected second moment estimate
 
             self.center_variable -= self.a * np.divide(self.m_norm, self.v_norm ** 0.5 + self.e) # Update parameters
-            print "Center_var updated"
         # Increment the number of parameter server updates.
         self.next_update()
 

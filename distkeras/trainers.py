@@ -864,12 +864,16 @@ class ADAGADAM(AsynchronousDistributedTrainer):
     """
 
     def __init__(self, keras_model, worker_optimizer, loss, metrics=["accuracy"], num_workers=2, batch_size=32,
-                 features_col="features", label_col="label", num_epoch=1, communication_window=12, master_port=5000, loss_weights=None):
+                 features_col="features", label_col="label", num_epoch=1, communication_window=12, master_port=5000, loss_weights=None, alpha=1e-5, beta_1=0.9, beta_2=0.999, epsilon=1e-8):
         # Initialize the parent object.
         super(ADAGADAM, self).__init__(keras_model, worker_optimizer, loss, metrics, num_workers,
                                    batch_size, features_col, label_col, num_epoch, master_port, loss_weights)
         # Set algorithm parameters.
         self.communication_window = communication_window
+        self.a = alpha
+        self.b1 = beta_1
+        self.b2 = beta_2
+        self.e = epsilon
 
     def allocate_worker(self):
         """Allocate an Adag worker."""
@@ -881,8 +885,7 @@ class ADAGADAM(AsynchronousDistributedTrainer):
 
     def allocate_parameter_server(self):
         """Allocate the Adag parameter server using Adam."""
-        parameter_server = ADAGParameterServerADAM(self.master_model, self.master_port)
-
+        parameter_server = ADAGParameterServerADAM(self.master_model, self.master_port, alpha=self.alpha, beta_1=self.b1, beta_2=self.b2, epsilon=self.e)
         return parameter_server
 
 
