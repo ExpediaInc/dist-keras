@@ -341,10 +341,11 @@ class ADAGParameterServerADAM(SocketParameterServer):
         data = recv_data(conn)
         # Extract the data from the dictionary.
         r = -np.asarray(data['residual']) # Convert residuals to gradient, SGD learning rate in worker level must be set to 1!
-        print "Sizes: ", r.size, self.center_variable.size
-        print "Min: ", min(r), " Max: ", max(r)
-        #assert r.size == self.center_variable.size # Assert length of gradients given is equal to size of weight parameters
-        print "r: ", sorted(r, reverse=True)
+        print "r Shape: ", r.shape
+        print "center_var Shape: ", self.center_variable.shape
+        assert r.shape == self.center_variable.shape # Assert length of gradients given is equal to size of weight parameters
+        print "Min max r: ", np.amin(r), np.nanmax(r)
+        print "r: ", r
         with self.mutex:
             # Update variables
             self.t += 1 # Increase timestep
@@ -359,10 +360,12 @@ class ADAGParameterServerADAM(SocketParameterServer):
             # print "np constant square root success"
             # print "v_norm: ", self.v_norm
             # print "before var np sqrt"
-            print "v_norm min-max: ", min(self.v_norm), max(self.v_norm)
+            print "v_norm min-max: ", np.amin(self.v_norm), np.nanmax(self.v_norm)
+            print "v_norm shape: ", self.v_norm.shape
+            print "m_norm shape: ", self.m_norm.shape
             # print "After sqrt"
             # print "v_norm_sqrt: ", v_norm_sqrt
-            self.center_variable -= self.a * self.m_norm / (self.v_norm ** 0.5 + self.e) # Update parameters
+            self.center_variable -= self.a * np.divide(self.m_norm, self.v_norm ** 0.5 + self.e) # Update parameters
             print "Center_var updated"
         # Increment the number of parameter server updates.
         self.next_update()
