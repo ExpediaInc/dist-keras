@@ -283,7 +283,7 @@ class NetworkWorker(Worker):
         d['worker_id'] = self.worker_id
         d['iteration'] = self.iteration
         d['timestamp'] = time.time()
-        #self.training_history.append(d)
+        self.training_history.append(d)
 
     def cacul_avg_loss(self,h, i):
         """Calculage the avg loss over the last num_iter_loss_avg iterations """
