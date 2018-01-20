@@ -570,12 +570,13 @@ class AsynchronousDistributedTrainer(DistributedTrainer):
     """
 
     def __init__(self, keras_model, worker_optimizer, loss, metrics=["accuracy"], num_workers=2, batch_size=32,
-                 features_col="features", label_col="label", num_epoch=1, master_port=5000, loss_weights=None):
+                 features_col="features", label_col="label", num_epoch=1, master_port=5000, loss_weights=None, should_return_history = False):
         super(AsynchronousDistributedTrainer, self).__init__(keras_model, worker_optimizer, loss, metrics, 
                                                              num_workers, batch_size, features_col,
                                                              label_col, num_epoch, master_port, loss_weights)
         # Initialize asynchronous methods variables.
         self.parallelism_factor = 1
+        self.should_return_history = should_return_history
 
     def allocate_worker(self):
         """Allocates the worker implementation.
@@ -639,7 +640,8 @@ class AsynchronousDistributedTrainer(DistributedTrainer):
         self.record_training_end()
         # Stop the communication service.
         self.stop_service()
-
+        if self.should_return_history:
+            return (self.parameter_server.get_model(), self.history)
         return self.parameter_server.get_model()
 
 
