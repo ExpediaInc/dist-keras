@@ -819,10 +819,10 @@ class ADAG(AsynchronousDistributedTrainer):
     """
 
     def __init__(self, keras_model, worker_optimizer, loss, metrics=["accuracy"], num_workers=2, batch_size=32,
-                 features_col="features", label_col="label", num_epoch=1, communication_window=12, master_port=5000, loss_weights=None):
+                 features_col="features", label_col="label", num_epoch=1, communication_window=12, master_port=5000, loss_weights=None, should_return_history = False):
         # Initialize the parent object.
         super(ADAG, self).__init__(keras_model, worker_optimizer, loss, metrics, num_workers,
-                                   batch_size, features_col, label_col, num_epoch, master_port, loss_weights)
+                                   batch_size, features_col, label_col, num_epoch, master_port, loss_weights, should_return_history)
         # Set algorithm parameters.
         self.communication_window = communication_window
 
