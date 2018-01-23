@@ -326,8 +326,8 @@ class ADAGParameterServerADAM(SocketParameterServer):
 
         # Stored vectors
         self.center_variable = np.asarray(self.model.get_weights()) # Parameters
-        self.m = np.asarray([np.zeros_like(i) for i in self.center_variable]) # First moment vector
-        self.v = np.asarray([np.zeros_like(i) for i in self.center_variable]) # Second moment vector
+        self.m = np.asarray([np.zeros(shape=i.shape) for i in self.center_variable]) # First moment vector
+        self.v = np.asarray([np.zeros(shape=i.shape) for i in self.center_variable]) # Second moment vector
         self.t = 0 # Timestep
 
         # Constants
@@ -336,22 +336,26 @@ class ADAGParameterServerADAM(SocketParameterServer):
         self.b2 = beta_2
         self.e = epsilon
         self.worker_learning_rate = worker_learning_rate
+
+        self.worker_learning_rate_inverse = 1.0 / self.worker_learning_rate
         
     def handle_commit(self, conn, addr):
         # Receive the parameters from the remote node.
         data = recv_data(conn)
         # Extract the data from the dictionary.
-        r = -np.asarray(data['residual']) * 1.0 / self.worker_learning_rate # Convert residuals to gradient, divides by SGD learning rate in worker level
+        r = np.multiply(np.negative(np.asarray(data['residual'])), self.worker_learning_rate_inverse) # Convert residuals to gradient, divides by SGD learning rate in worker level
         assert r.shape == self.center_variable.shape # Assert length of gradients given is equal to size of weight parameters
         with self.mutex:
             # Update variables
             self.t += 1 # Increase timestep
-            self.m = self.b1 * self.m + (1 - self.b1) * r # Update biased first moment estimate
-            self.v = self.b2 * self.v + (1 - self.b2) * (r ** 2) # Update biased second moment estimate
-            self.m_norm = self.m * 1.0 / (1 - self.b1 ** self.t) # Compute bias-corrected first moment estimate
-            self.v_norm = self.v * 1.0 / (1 - self.b2 ** self.t) # Compute bias-corrected second moment estimate
+            self.m *= self.b1
+            self.m += np.multiply(r, 1 - self.b1) # Update biased first moment estimate
+            self.v *= self.b2
+            self.v += np.multiply(np.power(r, 2), 1 - self.b2) # Update biased second moment estimate
+            self.m_norm = np.multiply(self.m, np.divide(1, 1 - self.b1 ** self.t)) # Compute bias-corrected first moment estimate
+            self.v_norm = np.multiply(self.v, np.divide(1, 1 - self.b2 ** self.t)) # Compute bias-corrected second moment estimate
 
-            self.center_variable -= self.a * np.divide(self.m_norm, self.v_norm ** 0.5 + self.e) # Update parameters
+            self.center_variable -= np.multiply(np.divide(self.m_norm, np.power(self.v_norm, 0.5) + self.e), self.a) # Update parameters
         # Increment the number of parameter server updates.
         self.next_update()
 
