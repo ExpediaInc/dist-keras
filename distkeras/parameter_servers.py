@@ -391,7 +391,7 @@ class ADAGParameterServerADAMPooled(SocketParameterServer):
     """
 
     def __init__(self, model, master_port, alpha=1e-5, beta_1=0.9, beta_2=0.999, epsilon=1e-8, worker_learning_rate=1e-5, processes=1):
-        super(ADAGParameterServerADAM, self).__init__(model, master_port)
+        super(ADAGParameterServerADAMPooled, self).__init__(model, master_port)
         
         # Constants
         self.a = alpha
