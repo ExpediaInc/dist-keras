@@ -17,6 +17,8 @@ import socket
 
 import threading
 
+import multiprocessing as mp
+
 from distkeras.networking import recv_data
 from distkeras.networking import send_data
 from distkeras.utils import deserialize_keras_model
@@ -377,6 +379,77 @@ class ADAGParameterServerADAM(SocketParameterServer):
     def finalize(self):
         # Set the weights of the model.
         self.model.set_weights(self.center_variable)
+
+class ADAGParameterServerADAMPooled(SocketParameterServer):
+    """A parameter server which integrates the incoming gradient residuals into
+       the model, and integrates them using the ADAG scheme with ADAM parameter optimization.
+
+    # Arguments
+        model: string. Keras model.
+               See: distkeras.utils.serialize_keras_model
+        master_port: int. Port number of the parameter server.
+    """
+
+    def __init__(self, model, master_port, alpha=1e-5, beta_1=0.9, beta_2=0.999, epsilon=1e-8, worker_learning_rate=1e-5, processes=1):
+        super(ADAGParameterServerADAM, self).__init__(model, master_port)
+        
+        # Constants
+        self.a = alpha
+        self.b1 = beta_1
+        self.b2 = beta_2
+        self.e = epsilon
+        self.worker_learning_rate = worker_learning_rate
+        self.processes = processes
+
+        self.worker_learning_rate_inverse = 1.0 / self.worker_learning_rate
+        # Stored vectors
+        self.center_variable = np.array_split(np.asarray(self.model.get_weights()), self.processes) # Parameters
+        self.m = np.array_split(np.asarray([np.zeros(shape=i.shape) for i in self.center_variable]), self.processes) # First moment vector
+        self.v = np.array_split(np.asarray([np.zeros(shape=i.shape) for i in self.center_variable]), self.processes) # Second moment vector
+        self.t = 0 # Timestep
+        
+    def handle_commit(self, conn, addr):
+
+        # Receive the parameters from the remote node.
+        data = np.array_split(np.asarray(recv_data(conn)['residual']), self.processes)
+        pool = mp.Pool(processes=self.processes)
+        def pooling_function(data, center_variable, m, v):
+            r = np.multiply(np.negative(data), self.worker_learning_rate_inverse)
+            m *= self.b1
+            m += np.multiply(r, 1 - self.b1) # Update biased first moment estimate
+            v *= self.b2
+            v += np.multiply(np.power(r, 2), 1 - self.b2) # Update biased second moment estimate
+            m_norm = np.multiply(m, np.divide(1, 1 - self.b1 ** self.t)) # Compute bias-corrected first moment estimate
+            v_norm = np.multiply(v, np.divide(1, 1 - self.b2 ** self.t)) # Compute bias-corrected second moment estimate
+            center_variable -= np.multiply(np.divide(m_norm, np.power(v_norm, 0.5) + self.e), self.a) # Update parameters
+            return (center_variable, m, v)
+
+        with self.mutex:
+            # Update variables
+            self.t += 1 # Increase timestep
+            center_variable, m, v = [pool.apply(pooling_function, args=(data[i], center_variable[i], m[i], v[i])) for i in range(self.processes)]
+            
+        # Increment the number of parameter server updates.
+        self.next_update()
+
+    def handle_pull(self, conn, addr):
+        """Handles parameter requests coming from the workers. This will
+        actually send the model parameters to the requesting host.
+
+        # Arguments:
+            conn: socket. The opened connection.
+            addr: addr. Address of the remote host.
+        """
+        conn.sendall(b'a')
+        # Fetch the raw center variables.
+        with self.mutex:
+            cv = np.concatenate(self.center_variable)
+        # Send the data over the socket.
+        send_data(conn, cv)
+
+    def finalize(self):
+        # Set the weights of the model.
+        self.model.set_weights(np.concatenate(self.center_variable))
 
 class DynSGDParameterServer(SocketParameterServer):
     """DynSGD parameter server, keeps track of the staleness between updates
