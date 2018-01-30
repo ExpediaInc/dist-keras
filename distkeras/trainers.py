@@ -940,7 +940,7 @@ class ADAGADAMPooled(AsynchronousDistributedTrainer):
 
     def allocate_parameter_server(self):
         """Allocate the Adag parameter server using Adam."""
-        parameter_server = ADAGParameterServerADAM(self.master_model, self.master_port, alpha=self.a, beta_1=self.b1, beta_2=self.b2, epsilon=self.e, worker_learning_rate=self.worker_learning_rate, processes = self.processes)
+        parameter_server = ADAGParameterServerADAMPooled(self.master_model, self.master_port, alpha=self.a, beta_1=self.b1, beta_2=self.b2, epsilon=self.e, worker_learning_rate=self.worker_learning_rate, processes = self.processes)
         return parameter_server
 
 
