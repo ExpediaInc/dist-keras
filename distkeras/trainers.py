@@ -919,7 +919,7 @@ class ADAGADAMPooled(AsynchronousDistributedTrainer):
     def __init__(self, keras_model, worker_optimizer, loss, metrics=["accuracy"], num_workers=2, batch_size=32,
                  features_col="features", label_col="label", num_epoch=1, communication_window=12, master_port=5000, loss_weights=None, alpha=1e-5, beta_1=0.9, beta_2=0.999, epsilon=1e-8, worker_learning_rate=1e-5, should_return_history = False, processes = 1):
         # Initialize the parent object.
-        super(ADAGADAM, self).__init__(keras_model, worker_optimizer, loss, metrics, num_workers,
+        super(ADAGADAMPooled, self).__init__(keras_model, worker_optimizer, loss, metrics, num_workers,
                                    batch_size, features_col, label_col, num_epoch, master_port, loss_weights, should_return_history)
         # Set algorithm parameters.
         self.communication_window = communication_window
