@@ -434,6 +434,10 @@ class ADAGParameterServerADAMPooled(SocketParameterServer):
         with self.mutex:
             # Update variables
             self.t += 1 # Increase timestep
+            print "Before pool data", data[0].dtype
+            print "Before pool cent", self.center_variable[0].dtype
+            print "Before pool m", self.m[0].dtype
+            print "Before pool v", self.v[0].dtype
             result = [pool.apply(pooling_function, args=(data[i], self.center_variable[i], self.m[i], self.v[i], self.a, self.b1, self.b2, self.e, self.t, self.worker_learning_rate_inverse)) for i in range(self.processes)]
             for i in range(len(result)):
                 center_variable[i], self.m[i], self.v[i] = result[i][0], result[i][1], result[1][2]
