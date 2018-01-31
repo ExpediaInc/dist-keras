@@ -27,6 +27,10 @@ from distkeras.utils import deserialize_keras_model
 
 # Multiprocessing top level functions
 def pooling_function(data, center_variable, m, v, a, b1, b2, e, t, worker_learning_rate_inverse):
+    print "data", data.dtype
+    print "cent", center_variable.dtype
+    print "m", m.dtype
+    print "v", v.dtype
     r = np.multiply(np.negative(data), worker_learning_rate_inverse)
     m *= b1
     m += np.multiply(r, 1 - b1) # Update biased first moment estimate
