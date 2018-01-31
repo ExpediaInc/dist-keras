@@ -420,7 +420,7 @@ class ADAGParameterServerADAMPooled(SocketParameterServer):
 
         self.worker_learning_rate_inverse = 1.0 / self.worker_learning_rate
         # Stored vectors
-        self.center_variable = np.array_split(np.asarray(self.model.get_weights()), self.processes) # Parameters
+        self.center_variable = np.array_split(np.asarray(self.model.get_weights()).astype(float), self.processes) # Parameters
         self.m = [np.zeros(shape=i.shape) for i in self.center_variable] # First moment vector
         self.v = [np.zeros(shape=i.shape) for i in self.center_variable] # Second moment vector
         self.t = 0 # Timestep
@@ -428,7 +428,7 @@ class ADAGParameterServerADAMPooled(SocketParameterServer):
     def handle_commit(self, conn, addr):
 
         # Receive the parameters from the remote node.
-        data = np.array_split(np.asarray(recv_data(conn)['residual']), self.processes)
+        data = np.array_split(np.asarray(recv_data(conn)['residual']).astype(float), self.processes)
         pool = mp.Pool(processes=self.processes)
 
         with self.mutex:
