@@ -27,10 +27,6 @@ from distkeras.utils import deserialize_keras_model
 
 # Multiprocessing top level functions
 def pooling_function(data, center_variable, m, v, a, b1, b2, e, t, worker_learning_rate_inverse):
-    print "data", data.dtype
-    print "cent", center_variable.dtype
-    print "m", m.dtype
-    print "v", v.dtype
     r = np.multiply(np.negative(data), worker_learning_rate_inverse)
     m *= b1
     m += np.multiply(r, 1 - b1) # Update biased first moment estimate
@@ -420,33 +416,23 @@ class ADAGParameterServerADAMPooled(SocketParameterServer):
 
         self.worker_learning_rate_inverse = 1.0 / self.worker_learning_rate
         # Stored vectors
-        self.center_variable = np.asarray(self.model.get_weights()) # Parameters
-        self.m = np.asarray([np.zeros(shape=i.shape) for i in self.center_variable]) # First moment vector
-        self.v = np.asarray([np.zeros(shape=i.shape) for i in self.center_variable]) # Second moment vector
+        self.center_variable = np.array_split(np.asarray(self.model.get_weights()), self.processes) # Parameters
+        self.m = np.arra_split(np.asarray([np.zeros(shape=i.shape) for i in self.center_variable])) # First moment vector
+        self.v = np.array_split(np.asarray([np.zeros(shape=i.shape) for i in self.center_variable])) # Second moment vector
         self.t = 0 # Timestep
-
-        self.center_variable = np.array_split(self.center_variable, self.processes) # Parameters
-        self.m = np.array_split(self.m, self.processes) # First moment vector
-        self.v = np.array_split(self.v, self.processes) # Second moment vector
 
     def handle_commit(self, conn, addr):
 
         # Receive the parameters from the remote node.
-        data = np.asarray(recv_data(conn)['residual'])
-        data = np.array_split(data, self.processes)
-        # data = np.array_split(np.asarray(recv_data(conn)['residual']).astype(float), self.processes)
+        data = np.array_split(np.asarray(recv_data(conn)['residual']), self.processes)
         pool = mp.Pool(processes=self.processes)
 
         with self.mutex:
             # Update variables
             self.t += 1 # Increase timestep
-            print "Before pool data", data[0].dtype
-            print "Before pool cent", self.center_variable[0].dtype
-            print "Before pool m", self.m[0].dtype
-            print "Before pool v", self.v[0].dtype
             result = [pool.apply(pooling_function, args=(data[i], self.center_variable[i], self.m[i], self.v[i], self.a, self.b1, self.b2, self.e, self.t, self.worker_learning_rate_inverse)) for i in range(self.processes)]
             for i in range(len(result)):
-                center_variable[i], self.m[i], self.v[i] = result[i][0], result[i][1], result[1][2]
+                self.center_variable[i], self.m[i], self.v[i] = result[i][0], result[i][1], result[1][2]
         # Increment the number of parameter server updates.
         self.next_update()
 
