@@ -27,14 +27,23 @@ from distkeras.utils import deserialize_keras_model
 
 # Multiprocessing top level functions
 def pooling_function(data, center_variable, m, v, a, b1, b2, e, t, worker_learning_rate_inverse):
+    print "break 1"
     r = np.multiply(np.negative(data), worker_learning_rate_inverse)
+    print "break 2"
     m *= b1
+    print "break 3"
     m += np.multiply(r, 1 - b1) # Update biased first moment estimate
+    print "break 4"
     v *= b2
+    print "break 5"
     v += np.multiply(np.power(r, 2), 1 - b2) # Update biased second moment estimate
+    print "break 6"
     m_norm = np.multiply(m, np.divide(1, 1 - b1 ** t)) # Compute bias-corrected first moment estimate
+    print "break 7"
     v_norm = np.multiply(v, np.divide(1, 1 - b2 ** t)) # Compute bias-corrected second moment estimate
+    print "break 8"
     center_variable -= np.multiply(np.divide(m_norm, np.power(v_norm, 0.5) + e), a) # Update parameters
+    print "finish"
     return (center_variable, m, v)
 
 # BEGIN Class Definitions
