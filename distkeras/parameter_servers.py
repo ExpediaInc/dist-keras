@@ -435,11 +435,17 @@ class ADAGParameterServerADAMPooled(SocketParameterServer):
         self.processes = processes
 
         self.worker_learning_rate_inverse = 1.0 / self.worker_learning_rate
+
         # Stored vectors
-        self.center_variable = np.array_split(np.asarray(self.model.get_weights()), self.processes) # Parameters
-        self.m = np.array_split(np.asarray([np.zeros(shape=i.shape) for i in self.center_variable]), self.processes) # First moment vector
-        self.v = np.array_split(np.asarray([np.zeros(shape=i.shape) for i in self.center_variable]), self.processes) # Second moment vector
+        self.center_variable = np.asarray(self.model.get_weights()) # Parameters
+        self.m = np.asarray([np.zeros(shape=i.shape) for i in self.center_variable]) # First moment vector
+        self.v = np.asarray([np.zeros(shape=i.shape) for i in self.center_variable]) # Second moment vector
         self.t = 0 # Timestep
+
+        #Array splitting for multiprocessing
+        self.center_variable = np.array_split(self.center_variable, self.processes) # Parameters
+        self.m = np.array_split(self.m, self.processes) # First moment vector
+        self.v = np.array_split(self.v, self.processes) # Second moment vector
 
     def handle_commit(self, conn, addr):
 
