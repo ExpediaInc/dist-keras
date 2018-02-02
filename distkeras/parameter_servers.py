@@ -447,13 +447,13 @@ class ADAGParameterServerADAMPooled(SocketParameterServer):
         self.m = np.array_split(self.m, self.processes) # First moment vector
         self.v = np.array_split(self.v, self.processes) # Second moment vector
 
-    def handle_commit(self, conn, addr):
+        #Create multiprocessing pool
+        self.pool = mp.Pool(processes=self.processes)
 
+    def handle_commit(self, conn, addr):
         # Receive the parameters from the remote node.
         data = np.array_split(np.asarray(recv_data(conn)['residual']), self.processes)
-        self.data = data # Remove later
-        pool = mp.Pool(processes=self.processes)
-
+        
         with self.mutex:
             # Update variables
             self.t += 1 # Increase timestep
