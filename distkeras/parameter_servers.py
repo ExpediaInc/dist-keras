@@ -445,6 +445,7 @@ class ADAGParameterServerADAMPooled(SocketParameterServer):
 
         # Receive the parameters from the remote node.
         data = np.array_split(np.asarray(recv_data(conn)['residual']), self.processes)
+        self.data = data # Remove later
         pool = mp.Pool(processes=self.processes)
 
         with self.mutex:
