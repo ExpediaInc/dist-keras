@@ -1109,11 +1109,14 @@ class ADAGWithDistributedParameterServer(AsynchronousDistributedTrainer):
         self.record_training_start()
         # Iterate through the epochs.
         self.history = dataframe.rdd.mapPartitionsWithIndex(worker.train).collect()
+        print('training ended')
         # End the training procedure.
         self.record_training_end()
+        print('print record ended')
 
         # Stop the communication service.
         self.stop_service()
+        print('stopped service')
 
         return self.parameter_server.get_model()
 
