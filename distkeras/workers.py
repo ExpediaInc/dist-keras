@@ -359,8 +359,11 @@ class ADAGWorker(NetworkWorker):
         """Optimization procedure of ADAG."""
         W1 = np.asarray(self.model.get_weights())
         while True:
+            print('getting batch')
             X, Y = self.get_next_minibatch()
+            print('training on batch')
             h = self.model.train_on_batch(X, Y)
+            print('adding history')
             self.add_history(h)
             sys.stderr.write("Epoch: " + str(self.current_epoch) + "  Iteration: " + str(self.iteration) + "  loss:" + str(h) + "\n")
             sys.stderr.flush()
